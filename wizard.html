@@ -1,0 +1,452 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f13">
+<title>WIZARD · Punktetracker</title>
+<style>
+  :root{
+    --bg:#0d0f13; --bg2:#151922; --card:#1c2230; --card2:#232b3d;
+    --line:#2c3547; --ink:#f2f5fa; --mut:#9aa7bd; --mut2:#6b7791;
+    --wiz:#9b7dff; --wiz2:#b79cff; --amber:#f5a623; --green:#3ecf8e;
+    --red:#e23b3b; --red2:#ff5a4d; --blue:#4aa8ff;
+    --shadow:0 8px 30px rgba(0,0,0,.45); --r:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -200px,rgba(155,125,255,.14),transparent 60%),
+      var(--bg);
+    color:var(--ink); min-height:100vh; padding:0 0 90px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:720px;margin:0 auto;padding:0 14px}
+  header{text-align:center;padding:24px 16px 8px}
+  .stars{letter-spacing:8px;font-size:13px;opacity:.6}
+  h1{margin:2px 0 0;font-size:26px;letter-spacing:4px;font-weight:800}
+  h1 .hl{color:var(--wiz2)}
+  .sub{color:var(--mut);font-size:13px;margin-top:4px}
+
+  .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:14px;box-shadow:var(--shadow)}
+  .sectionTitle{font-size:12px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;font-weight:800;margin:16px 0 8px}
+  .sectionTitle:first-child{margin-top:0}
+  label.fld{display:block;font-size:12px;color:var(--mut);margin:0 0 6px;letter-spacing:.4px;text-transform:uppercase}
+  select,input[type=text]{
+    width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);
+    padding:12px;border-radius:10px;font-size:16px;outline:none;
+  }
+  select:focus,input:focus{border-color:var(--wiz)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  .grow{flex:1;min-width:130px}
+
+  button.act{
+    width:100%;padding:15px;border:none;border-radius:14px;font-size:16.5px;font-weight:800;
+    letter-spacing:.4px;cursor:pointer;color:#fff;margin-top:14px;
+    background:linear-gradient(180deg,var(--wiz2),#7c5be0);box-shadow:0 6px 20px rgba(155,125,255,.35);
+    transition:transform .08s;
+  }
+  button.act:active{transform:scale(.98)}
+  button.act:disabled{opacity:.4;box-shadow:none;cursor:default}
+  button.act.sec{background:var(--card2);border:1px solid var(--line);box-shadow:none;font-size:14.5px;padding:12px}
+  button.act.good{background:linear-gradient(180deg,#4bd89b,#2b9e69);box-shadow:0 6px 20px rgba(62,207,142,.3)}
+  .mini{padding:9px 12px;font-size:13px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);cursor:pointer;font-weight:600}
+
+  .hint{font-size:12px;color:var(--mut2);margin-top:10px;line-height:1.5}
+  .empty{text-align:center;color:var(--mut2);padding:26px 10px;font-size:14px}
+
+  /* Spieler-Editor */
+  .prow{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .prow .idx{flex:0 0 30px;height:30px;border-radius:8px;background:var(--card2);border:1px solid var(--line);
+    display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px;color:var(--mut)}
+  .prow input{flex:1}
+  .del{background:transparent;border:none;color:var(--red2);font-size:20px;cursor:pointer;padding:4px 6px;line-height:1}
+  .addbtn{margin-top:10px;width:100%;padding:10px;border-radius:10px;border:1px dashed var(--line);background:transparent;color:var(--mut);cursor:pointer;font-weight:600}
+
+  .modecard{border:1.5px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:8px;cursor:pointer;background:var(--bg2)}
+  .modecard.on{border-color:var(--wiz);background:rgba(155,125,255,.08)}
+  .modecard b{display:block;font-size:14.5px}
+  .modecard span{color:var(--mut);font-size:12.5px;line-height:1.45;display:block;margin-top:2px}
+
+  /* Runden-Widget */
+  .roundhead{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+  .roundnum{
+    min-width:56px;height:56px;border-radius:14px;display:flex;flex-direction:column;align-items:center;justify-content:center;
+    background:linear-gradient(180deg,var(--wiz2),#7c5be0);color:#fff;font-weight:800;
+  }
+  .roundnum b{font-size:20px;line-height:1}
+  .roundnum span{font-size:9px;letter-spacing:1px;text-transform:uppercase;opacity:.85}
+  .roundinfo{flex:1}
+  .roundinfo b{font-size:17px;display:block}
+  .roundinfo span{color:var(--mut);font-size:12.5px}
+  .phase{font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;padding:4px 10px;border-radius:20px}
+  .ph-bid{background:rgba(74,168,255,.16);color:var(--blue)}
+  .ph-trick{background:rgba(245,166,35,.16);color:var(--amber)}
+  .ph-done{background:rgba(62,207,142,.16);color:var(--green)}
+
+  .brow{display:flex;align-items:center;gap:10px;padding:8px 0;border-top:1px solid var(--line)}
+  .brow:first-child{border-top:none}
+  .brow .nm{flex:1;font-weight:700;font-size:15px;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+  .brow .nm .dl{font-size:10.5px;color:var(--amber);font-weight:800;letter-spacing:.5px;margin-left:6px}
+  .brow .nm .ord{color:var(--mut2);font-weight:600;font-size:12px;margin-right:6px}
+  .brow select{flex:0 0 86px;padding:9px;font-size:15px}
+  .brow .secret{flex:0 0 86px;text-align:center;font-size:18px;color:var(--mut2)}
+  .brow .bidshow{flex:0 0 52px;text-align:center;font-weight:800;font-size:16px;color:var(--wiz2)}
+  .brow .pts{flex:0 0 56px;text-align:right;font-weight:800;font-size:14px}
+  .pts.pos{color:var(--green)} .pts.neg{color:var(--red2)}
+
+  .sumline{display:flex;justify-content:space-between;align-items:center;margin-top:10px;padding:9px 12px;border-radius:10px;background:var(--bg2);border:1px solid var(--line);font-size:13px;color:var(--mut)}
+  .sumline b{font-size:15px}
+  .sumline.ok b{color:var(--green)} .sumline.warn b{color:var(--amber)} .sumline.bad b{color:var(--red2)}
+
+  /* Tabelle */
+  .tblwrap{overflow-x:auto;margin-top:10px;border-radius:12px;border:1px solid var(--line)}
+  table.st{border-collapse:collapse;width:100%;min-width:380px;background:var(--bg2)}
+  table.st th,table.st td{padding:7px 8px;text-align:center;border-bottom:1px solid var(--line);font-size:13px}
+  table.st th{background:var(--card2);color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px}
+  table.st th.pl{min-width:74px}
+  table.st td.rd{color:var(--mut);font-weight:800;width:40px;white-space:nowrap}
+  table.st td.rd .ed{color:var(--mut2);cursor:pointer;font-size:13px;margin-left:3px}
+  table.st td .big{font-size:16px;font-weight:800;display:block;line-height:1.15}
+  table.st td .sml{font-size:10.5px;color:var(--mut2);display:block;white-space:nowrap}
+  table.st td .sml .pp{color:var(--green)} table.st td .sml .pm{color:var(--red2)}
+  table.st tr.cur td{background:rgba(155,125,255,.07)}
+  table.st tr.best td{background:rgba(62,207,142,.05)}
+
+  /* Overlay (verdeckte Eingabe / Editieren) */
+  .ovl{position:fixed;inset:0;background:rgba(8,10,14,.92);z-index:50;display:flex;align-items:center;justify-content:center;padding:18px;backdrop-filter:blur(4px)}
+  .ovl .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:20px;max-width:420px;width:100%;max-height:88vh;overflow-y:auto;box-shadow:var(--shadow)}
+  .ovl h3{margin:0 0 4px;font-size:19px}
+  .ovl .who{color:var(--wiz2)}
+  .numpad{display:grid;grid-template-columns:repeat(4,1fr);gap:9px;margin-top:16px}
+  .numpad button{
+    padding:16px 0;font-size:19px;font-weight:800;border-radius:12px;border:1px solid var(--line);
+    background:var(--bg2);color:var(--ink);cursor:pointer;
+  }
+  .numpad button:active{background:var(--wiz);border-color:var(--wiz)}
+  .winner{
+    text-align:center;padding:22px;border-radius:var(--r);margin-top:14px;
+    background:linear-gradient(180deg,rgba(245,166,35,.14),var(--card));border:1px solid rgba(245,166,35,.4);
+  }
+  .winner .cup{font-size:44px}
+  .winner b{font-size:21px;display:block;margin-top:4px}
+  .winner span{color:var(--mut);font-size:13.5px}
+  .foot{text-align:center;color:var(--mut2);font-size:11px;margin-top:26px}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .box,.ovl .card{animation:pop .25s ease both}
+</style>
+</head>
+<body>
+<header>
+  <div class="stars">✦ ✧ ✦</div>
+  <h1>WIZ<span class="hl">A</span>RD</h1>
+  <div class="sub">Stichansagen & Punkte-Tracker</div>
+</header>
+<div class="wrap" id="app"></div>
+<div class="foot">Läuft komplett offline · Spielstand wird lokal gespeichert</div>
+
+<script>
+"use strict";
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const KEY="wizardTracker.v1";
+const ROUNDS_BY_PLAYERS={3:20,4:15,5:12,6:10};
+const MODES=[
+  {id:1,name:"Offen ansagen – Summe darf aufgehen",desc:"Einer trägt für alle ein. Die Summe der Ansagen darf gleich der Stichzahl sein."},
+  {id:2,name:"Offen ansagen – Summe darf NICHT aufgehen",desc:"Einer trägt für alle ein. Der letzte Ansager (Geber) darf die Summe nicht genau aufgehen lassen – die App sperrt den verbotenen Wert."},
+  {id:3,name:"Verdeckt ansagen – Aufdecken nach der Ansage",desc:"Handy geht reihum, jeder tippt seine Ansage geheim ein. Sobald alle dran waren, werden alle Ansagen aufgedeckt."},
+  {id:4,name:"Verdeckt ansagen – Aufdecken erst nach der Runde",desc:"Handy geht reihum, jeder tippt geheim ein. Aufgedeckt wird erst, wenn die Runde gespielt ist und die Stiche eingetragen werden."}
+];
+function score(bid,tricks){ return bid===tricks ? 20+10*tricks : -10*Math.abs(bid-tricks); }
+
+/* ---------- State ---------- */
+let G=null;           // {names[], mode, firstDealer, rounds, cur, bids{r:{p}}, tricks{r:{p}}, played{r}, done{r}}
+let SETUP=null;       // Setup-Zwischenstand
+let EDIT_R=null;      // Runde im Bearbeitungs-Overlay
+let SECRET_P=null;    // Spieler-Index für verdeckte Eingabe
+function load(){ try{const s=localStorage.getItem(KEY); if(s) G=JSON.parse(s);}catch(e){} }
+function save(){ try{ if(G) localStorage.setItem(KEY,JSON.stringify(G)); else localStorage.removeItem(KEY);}catch(e){} }
+load();
+
+const bid=(r,p)=> (G.bids[r]&&G.bids[r][p]!=null)?G.bids[r][p]:null;
+const trk=(r,p)=> (G.tricks[r]&&G.tricks[r][p]!=null)?G.tricks[r][p]:null;
+function setBid(r,p,v){ (G.bids[r]=G.bids[r]||{})[p]=v; if(v==null)delete G.bids[r][p]; save(); }
+function setTrk(r,p,v){ (G.tricks[r]=G.tricks[r]||{})[p]=v; if(v==null)delete G.tricks[r][p]; save(); }
+const dealerOf=r=>(G.firstDealer+r)%G.names.length;
+function bidOrder(r){ const n=G.names.length,d=dealerOf(r),o=[]; for(let i=1;i<=n;i++)o.push((d+i)%n); return o; } // Geber zuletzt
+const allBids=r=>G.names.every((_,p)=>bid(r,p)!=null);
+const allTrks=r=>G.names.every((_,p)=>trk(r,p)!=null);
+const trkSum=r=>G.names.reduce((s,_,p)=>s+(trk(r,p)||0),0);
+const bidSum=r=>G.names.reduce((s,_,p)=>s+(bid(r,p)||0),0);
+function roundPts(r,p){ return score(bid(r,p),trk(r,p)); }
+function cumPts(p,uptoR){ let s=0; for(let r=0;r<=uptoR;r++) if(G.done[r]) s+=roundPts(r,p); return s; }
+
+/* ---------- Setup ---------- */
+function newSetup(){
+  SETUP={names:["","","",""],mode:1,firstDealer:0};
+  render();
+}
+function renderSetup(){
+  let h=`<div class="box"><div class="sectionTitle">1 · Spieler (3–6, Sitzreihenfolge)</div>`;
+  SETUP.names.forEach((n,i)=>{
+    h+=`<div class="prow"><div class="idx">${i+1}</div>
+      <input type="text" maxlength="14" placeholder="Name Spieler ${i+1}" value="${esc(n)}" data-nm="${i}">
+      ${SETUP.names.length>3?`<button class="del" data-rm="${i}">×</button>`:""}</div>`;
+  });
+  if(SETUP.names.length<6) h+=`<button class="addbtn" id="addP">+ Spieler hinzufügen</button>`;
+  const nn=SETUP.names.length;
+  h+=`<div class="hint">${nn} Spieler → ${ROUNDS_BY_PLAYERS[nn]} Runden</div>`;
+  h+=`<div class="sectionTitle">2 · Ansage-Modus</div>`;
+  MODES.forEach(m=>{
+    h+=`<div class="modecard ${SETUP.mode===m.id?"on":""}" data-mode="${m.id}"><b>${m.id} · ${esc(m.name)}</b><span>${esc(m.desc)}</span></div>`;
+  });
+  h+=`<div class="sectionTitle">3 · Erster Geber</div>
+    <select id="selDealer">${SETUP.names.map((n,i)=>`<option value="${i}" ${SETUP.firstDealer===i?"selected":""}>${esc(n.trim()||("Spieler "+(i+1)))}</option>`).join("")}</select>
+    <div class="hint">Der Geber sagt immer als Letzter an; das Geben wandert jede Runde weiter.</div>
+    <button class="act" id="btnStart">Spiel starten ✦</button>
+    ${G?`<button class="act sec" id="btnBack">← Zurück zum laufenden Spiel</button>`:""}
+  </div>`;
+  return h;
+}
+function bindSetup(){
+  document.querySelectorAll("[data-nm]").forEach(inp=>inp.addEventListener("input",()=>{SETUP.names[+inp.dataset.nm]=inp.value;}));
+  document.querySelectorAll("[data-rm]").forEach(b=>b.addEventListener("click",()=>{SETUP.names.splice(+b.dataset.rm,1);if(SETUP.firstDealer>=SETUP.names.length)SETUP.firstDealer=0;render();}));
+  const a=document.getElementById("addP"); if(a)a.addEventListener("click",()=>{SETUP.names.push("");render();});
+  document.querySelectorAll("[data-mode]").forEach(c=>c.addEventListener("click",()=>{SETUP.mode=+c.dataset.mode;render();}));
+  document.getElementById("selDealer").addEventListener("change",e=>{SETUP.firstDealer=+e.target.value;});
+  document.getElementById("btnStart").addEventListener("click",()=>{
+    const names=SETUP.names.map((n,i)=>n.trim()||("Spieler "+(i+1)));
+    if(G && !confirm("Laufendes Spiel verwerfen und neu starten?")) return;
+    G={names,mode:SETUP.mode,firstDealer:SETUP.firstDealer,rounds:ROUNDS_BY_PLAYERS[names.length],
+       cur:0,bids:{},tricks:{},played:{},done:{}};
+    SETUP=null; save(); render();
+  });
+  const bb=document.getElementById("btnBack"); if(bb)bb.addEventListener("click",()=>{SETUP=null;render();});
+}
+
+/* ---------- Runden-Widget ---------- */
+function renderRound(){
+  const r=G.cur;
+  if(r>=G.rounds) return renderFinished();
+  const t=r+1, d=dealerOf(r), order=bidOrder(r);
+  const bidsIn=allBids(r);
+  const secretMode=G.mode>=3;
+  const revealed = !secretMode || (G.mode===3 ? bidsIn : !!G.played[r]);
+  const inTricks = bidsIn && (!secretMode || G.mode===3 || G.played[r] || G.mode===4);
+  // Phase-Label
+  let phase = !bidsIn ? '<span class="phase ph-bid">Ansagen</span>' :
+    '<span class="phase ph-trick">Stiche eintragen</span>';
+
+  let h=`<div class="box"><div class="roundhead">
+    <div class="roundnum"><b>${t}</b><span>Runde</span></div>
+    <div class="roundinfo"><b>${t} Stich${t>1?"e":""} zu vergeben</b>
+    <span>Geber: ${esc(G.names[d])} · Runde ${t} von ${G.rounds} · Modus ${G.mode}</span></div>
+    ${phase}</div>`;
+
+  /* --- Ansagephase --- */
+  if(!bidsIn){
+    h+=`<div class="sectionTitle">Ansagen (Reihenfolge: links vom Geber zuerst)</div>`;
+    if(!secretMode){
+      // offen: Selects für alle, in Ansage-Reihenfolge
+      const sumOthers=p=>order.reduce((s,q)=>q!==p?s+(bid(r,q)||0):s,0);
+      order.forEach((p,oi)=>{
+        const isDealer=p===d;
+        let forbidden=null;
+        if(G.mode===2 && isDealer){
+          const others=order.filter(q=>q!==p);
+          if(others.every(q=>bid(r,q)!=null)) forbidden=t-sumOthers(p);
+        }
+        let opts=`<option value="">–</option>`;
+        for(let v=0;v<=t;v++) opts+=`<option value="${v}" ${bid(r,p)===v?"selected":""} ${forbidden===v?"disabled":""}>${v}${forbidden===v?" 🚫":""}</option>`;
+        h+=`<div class="brow"><span class="nm"><span class="ord">${oi+1}.</span>${esc(G.names[p])}${isDealer?'<span class="dl">GEBER</span>':""}</span>
+          <select data-bid="${p}">${opts}</select></div>`;
+      });
+      const bs=bidSum(r), entered=G.names.filter((_,p)=>bid(r,p)!=null).length;
+      const cls = entered<G.names.length?"":(bs===t?(G.mode===2?"bad":"warn"):"ok");
+      h+=`<div class="sumline ${cls}"><span>Summe der Ansagen (${entered}/${G.names.length})</span><b>${bs} / ${t}</b></div>`;
+      if(G.mode===2) h+=`<div class="hint">Der Geber darf die Summe nicht genau auf ${t} bringen – der Wert wird automatisch gesperrt.</div>`;
+    } else {
+      // verdeckt: reihum geheime Eingabe
+      order.forEach((p,oi)=>{
+        const has=bid(r,p)!=null;
+        h+=`<div class="brow"><span class="nm"><span class="ord">${oi+1}.</span>${esc(G.names[p])}${p===d?'<span class="dl">GEBER</span>':""}</span>
+          <span class="secret">${has?"✅":"…"}</span></div>`;
+      });
+      const next=order.find(p=>bid(r,p)==null);
+      if(next!=null) h+=`<button class="act" id="btnSecret">🤫 ${esc(G.names[next])}: Ansage verdeckt eingeben</button>
+        <div class="hint">Handy an ${esc(G.names[next])} geben. Die Eingabe sieht nur, wer das Handy hält.</div>`;
+    }
+  }
+
+  /* --- Stichphase --- */
+  if(bidsIn){
+    if(secretMode && G.mode===4 && !G.played[r] ){
+      // Ansagen sind drin, aber noch verdeckt bis "Runde gespielt"
+      h+=`<div class="sectionTitle">Alle Ansagen sind verdeckt abgegeben 🤫</div>
+        <div class="hint">Spielt jetzt die Runde. Danach aufdecken und Stiche eintragen.</div>
+        <button class="act" id="btnPlayed">🃏 Runde gespielt – aufdecken & Stiche eintragen</button>`;
+    } else {
+      h+=`<div class="sectionTitle">Ansagen ${revealed?"":"(verdeckt)"} & gemachte Stiche</div>`;
+      G.names.forEach((nm,p)=>{
+        let opts=`<option value="">–</option>`;
+        for(let v=0;v<=t;v++) opts+=`<option value="${v}" ${trk(r,p)===v?"selected":""}>${v}</option>`;
+        const b=bid(r,p), tr=trk(r,p);
+        const pts=(tr!=null)?score(b,tr):null;
+        h+=`<div class="brow"><span class="nm">${esc(nm)}${p===d?'<span class="dl">GEBER</span>':""}</span>
+          <span class="bidshow" title="Ansage">💬 ${b}</span>
+          <select data-trk="${p}">${opts}</select>
+          <span class="pts ${pts==null?"":(pts>=0?"pos":"neg")}">${pts==null?"":(pts>0?"+":"")+pts}</span></div>`;
+      });
+      const s=trkSum(r), ok=s===t&&allTrks(r);
+      h+=`<div class="sumline ${allTrks(r)?(s===t?"ok":"bad"):""}"><span>Verteilte Stiche</span><b>${s} / ${t}</b></div>`;
+      if(allTrks(r)&&s!==t) h+=`<div class="hint" style="color:var(--red2)">⚠️ Die Stiche müssen zusammen genau ${t} ergeben!</div>`;
+      h+=`<button class="act good" id="btnDone" ${ok?"":"disabled"}>✔ Runde abschließen${r+1<G.rounds?" → Runde "+(t+1):""}</button>`;
+    }
+  }
+  h+=`</div>`;
+  return h;
+}
+function bindRound(){
+  const r=G.cur;
+  document.querySelectorAll("[data-bid]").forEach(s=>s.addEventListener("change",()=>{
+    setBid(r,+s.dataset.bid, s.value===""?null:+s.value); render();
+  }));
+  document.querySelectorAll("[data-trk]").forEach(s=>s.addEventListener("change",()=>{
+    setTrk(r,+s.dataset.trk, s.value===""?null:+s.value); render();
+  }));
+  const sb=document.getElementById("btnSecret");
+  if(sb) sb.addEventListener("click",()=>{ SECRET_P=bidOrder(r).find(p=>bid(r,p)==null); render(); });
+  const pl=document.getElementById("btnPlayed");
+  if(pl) pl.addEventListener("click",()=>{ G.played[r]=true; save(); render(); });
+  const dn=document.getElementById("btnDone");
+  if(dn) dn.addEventListener("click",()=>{
+    G.done[r]=true; G.played[r]=true; G.cur=r+1; save(); render();
+    window.scrollTo({top:0,behavior:"smooth"});
+  });
+}
+
+/* ---------- Verdeckte Eingabe (Overlay) ---------- */
+function renderSecretOvl(){
+  const r=G.cur,t=r+1,p=SECRET_P;
+  let pad="";
+  for(let v=0;v<=t;v++) pad+=`<button data-sv="${v}">${v}</button>`;
+  return `<div class="ovl"><div class="card">
+    <h3>🤫 <span class="who">${esc(G.names[p])}</span>, deine Ansage</h3>
+    <div class="hint" style="margin-top:2px">Runde ${t} · ${t} Stich${t>1?"e":""} möglich. Tippe deine Zahl – sie bleibt verdeckt.</div>
+    <div class="numpad">${pad}</div>
+    <button class="act sec" id="secCancel">Abbrechen</button>
+  </div></div>`;
+}
+function bindSecretOvl(){
+  document.querySelectorAll("[data-sv]").forEach(b=>b.addEventListener("click",()=>{
+    setBid(G.cur,SECRET_P,+b.dataset.sv); SECRET_P=null; render();
+  }));
+  document.getElementById("secCancel").addEventListener("click",()=>{SECRET_P=null;render();});
+}
+
+/* ---------- Runde bearbeiten (Overlay) ---------- */
+function renderEditOvl(){
+  const r=EDIT_R,t=r+1;
+  let rows="";
+  G.names.forEach((nm,p)=>{
+    let bo=`<option value="">–</option>`,to=`<option value="">–</option>`;
+    for(let v=0;v<=t;v++){
+      bo+=`<option value="${v}" ${bid(r,p)===v?"selected":""}>${v}</option>`;
+      to+=`<option value="${v}" ${trk(r,p)===v?"selected":""}>${v}</option>`;
+    }
+    rows+=`<div class="brow"><span class="nm">${esc(nm)}</span>
+      <select data-eb="${p}" title="Ansage">${bo}</select>
+      <select data-et="${p}" title="Stiche">${to}</select></div>`;
+  });
+  return `<div class="ovl"><div class="card">
+    <h3>✎ Runde ${t} bearbeiten</h3>
+    <div class="hint" style="margin-top:2px">Links Ansage 💬, rechts gemachte Stiche. Punkte werden neu berechnet.</div>
+    <div style="margin-top:10px">${rows}</div>
+    <div class="sumline" id="editSum"></div>
+    <button class="act good" id="editSave">Speichern</button>
+    <button class="act sec" id="editCancel">Abbrechen</button>
+  </div></div>`;
+}
+function bindEditOvl(){
+  const r=EDIT_R,t=r+1;
+  const upd=()=>{
+    const s=trkSum(r);
+    const el=document.getElementById("editSum");
+    el.className="sumline "+(allTrks(r)?(s===t?"ok":"bad"):"");
+    el.innerHTML=`<span>Verteilte Stiche</span><b>${s} / ${t}</b>`;
+    document.getElementById("editSave").disabled = !(allBids(r)&&allTrks(r)&&s===t);
+  };
+  document.querySelectorAll("[data-eb]").forEach(s=>s.addEventListener("change",()=>{setBid(r,+s.dataset.eb,s.value===""?null:+s.value);upd();}));
+  document.querySelectorAll("[data-et]").forEach(s=>s.addEventListener("change",()=>{setTrk(r,+s.dataset.et,s.value===""?null:+s.value);upd();}));
+  document.getElementById("editSave").addEventListener("click",()=>{G.done[r]=true;save();EDIT_R=null;render();});
+  document.getElementById("editCancel").addEventListener("click",()=>{EDIT_R=null;render();});
+  upd();
+}
+
+/* ---------- Fertig ---------- */
+function renderFinished(){
+  const totals=G.names.map((_,p)=>cumPts(p,G.rounds-1));
+  const max=Math.max(...totals);
+  const winners=G.names.filter((_,p)=>totals[p]===max);
+  return `<div class="winner"><div class="cup">🏆</div>
+    <b>${winners.map(esc).join(" & ")} gewinnt${winners.length>1?" gemeinsam":""}!</b>
+    <span>${max} Punkte nach ${G.rounds} Runden</span></div>`;
+}
+
+/* ---------- Tabelle ---------- */
+function renderTableBox(){
+  let h=`<div class="box"><div class="sectionTitle">Wertung</div><div class="tblwrap"><table class="st"><thead><tr><th>Rd.</th>`;
+  const lastDone=(()=>{let x=-1;for(let r=0;r<G.rounds;r++)if(G.done[r])x=r;return x;})();
+  const totals=G.names.map((_,p)=>cumPts(p,G.rounds-1));
+  const best=Math.max(...totals);
+  G.names.forEach(nm=>h+=`<th class="pl">${esc(nm)}</th>`);
+  h+=`</tr></thead><tbody>`;
+  for(let r=0;r<G.rounds;r++){
+    const isCur=r===G.cur;
+    h+=`<tr class="${isCur?"cur":""}"><td class="rd">${r+1}${G.done[r]?`<span class="ed" data-edit="${r}" title="Runde bearbeiten">✎</span>`:""}</td>`;
+    G.names.forEach((_,p)=>{
+      if(G.done[r]){
+        const pts=roundPts(r,p);
+        h+=`<td><span class="big">${cumPts(p,r)}</span>
+          <span class="sml">💬${bid(r,p)} · <span class="${pts>=0?"pp":"pm"}">${pts>0?"+":""}${pts}</span></span></td>`;
+      } else if(isCur && bid(r,p)!=null && (G.mode<3 || (G.mode===3&&allBids(r)) || G.played[r])){
+        h+=`<td><span class="sml">💬${bid(r,p)}</span></td>`;
+      } else h+=`<td><span class="sml">–</span></td>`;
+    });
+    h+=`</tr>`;
+  }
+  h+=`</tbody></table></div>`;
+  if(lastDone>=0){
+    const lead=G.names.filter((_,p)=>cumPts(p,lastDone)===Math.max(...G.names.map((_,q)=>cumPts(q,lastDone))));
+    h+=`<div class="hint">Aktuell vorn: <b style="color:var(--amber)">${lead.map(esc).join(", ")}</b></div>`;
+  }
+  h+=`<button class="act sec" id="btnNew" style="margin-top:14px">✨ Neues Spiel einrichten</button></div>`;
+  return h;
+}
+function bindTable(){
+  document.querySelectorAll("[data-edit]").forEach(b=>b.addEventListener("click",()=>{EDIT_R=+b.dataset.edit;render();}));
+  document.getElementById("btnNew").addEventListener("click",()=>{
+    SETUP={names:G.names.slice(),mode:G.mode,firstDealer:G.firstDealer};
+    while(SETUP.names.length<3)SETUP.names.push("");
+    render();
+  });
+}
+
+/* ---------- Haupt-Render ---------- */
+function render(){
+  const app=document.getElementById("app");
+  if(SETUP||!G){ if(!SETUP)newSetup(); app.innerHTML=renderSetup(); bindSetup(); return; }
+  let h=renderRound()+renderTableBox();
+  if(SECRET_P!=null) h+=renderSecretOvl();
+  if(EDIT_R!=null) h+=renderEditOvl();
+  app.innerHTML=h;
+  if(G.cur<G.rounds) bindRound();
+  bindTable();
+  if(SECRET_P!=null) bindSecretOvl();
+  if(EDIT_R!=null) bindEditOvl();
+}
+render();
+</script>
+</body>
+</html>
