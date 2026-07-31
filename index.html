@@ -1,0 +1,87 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f13">
+<title>Florians Brettspiel-Tools</title>
+<style>
+  :root{
+    --bg:#0d0f13; --bg2:#151922; --card:#1c2230; --card2:#232b3d;
+    --line:#2c3547; --ink:#f2f5fa; --mut:#9aa7bd; --mut2:#6b7791;
+    --red:#e23b3b; --red2:#ff5a4d; --amber:#f5a623; --green:#3ecf8e;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -200px,rgba(226,59,59,.12),transparent 60%),
+      var(--bg);
+    color:var(--ink); min-height:100vh; padding:0 0 60px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:640px;margin:0 auto;padding:0 16px}
+  .flag{
+    height:10px;width:100%;max-width:640px;margin:0 auto 22px;border-radius:4px;
+    background-image:
+      linear-gradient(45deg,#141821 25%,transparent 25%,transparent 75%,#141821 75%,#141821),
+      linear-gradient(45deg,#141821 25%,#e9edf5 25%,#e9edf5 75%,#141821 75%,#141821);
+    background-size:20px 20px;background-position:0 0,10px 10px;opacity:.55;
+  }
+  header{text-align:center;padding:28px 16px 6px}
+  h1{margin:0;font-size:28px;letter-spacing:1px;font-weight:800}
+  h1 .hl{color:var(--red2)}
+  .sub{color:var(--mut);font-size:14px;margin-top:6px}
+  .apps{margin-top:26px}
+  a.app{
+    display:flex;align-items:center;gap:16px;text-decoration:none;color:var(--ink);
+    background:linear-gradient(180deg,var(--card2),var(--card));
+    border:1px solid var(--line);border-radius:16px;padding:18px;margin-top:14px;
+    box-shadow:0 8px 30px rgba(0,0,0,.45);transition:transform .12s, border-color .12s;
+  }
+  a.app:active{transform:scale(.98)}
+  a.app:hover{border-color:var(--red2)}
+  .icon{
+    flex:0 0 54px;height:54px;border-radius:14px;display:flex;align-items:center;justify-content:center;
+    font-size:26px;background:var(--bg2);border:1px solid var(--line);
+  }
+  .app .body{flex:1;min-width:0}
+  .app .body b{font-size:17px;display:block}
+  .app .body span{color:var(--mut);font-size:13px;line-height:1.45;display:block;margin-top:3px}
+  .app .go{color:var(--mut2);font-size:20px}
+  .soon{
+    display:flex;align-items:center;gap:16px;border:1px dashed var(--line);border-radius:16px;
+    padding:18px;margin-top:14px;color:var(--mut2);font-size:14px;
+  }
+  .foot{text-align:center;color:var(--mut2);font-size:11.5px;margin-top:34px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="flag"></div>
+<header>
+  <h1>🎲 Florians <span class="hl">Brettspiel</span>-Tools</h1>
+  <div class="sub">Kleine Helfer für den Spieleabend</div>
+</header>
+<div class="wrap">
+  <div class="apps">
+    <a class="app" href="heat.html">
+      <div class="icon">🏎️</div>
+      <div class="body">
+        <b>HEAT · Renn- & Saison-Randomizer</b>
+        <span>Wetter, Streckenbedingungen & Startaufstellung auslosen · offizielle Saisons 1961–1966 · Punktetracker mit Saisonwertung</span>
+      </div>
+      <div class="go">›</div>
+    </a>
+    <div class="soon">
+      <div class="icon">✨</div>
+      <div>Hier ist Platz für das nächste Tool …</div>
+    </div>
+  </div>
+  <div class="foot">
+    Läuft komplett im Browser · Spielstände werden lokal auf deinem Gerät gespeichert<br>
+    Tipp fürs Handy: Seite öffnen → Browser-Menü → „Zum Startbildschirm hinzufügen“
+  </div>
+</div>
+</body>
+</html>

@@ -1,0 +1,1064 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f13">
+<title>HEAT · Renn- & Saison-Randomizer</title>
+<style>
+  :root{
+    --bg:#0d0f13; --bg2:#151922; --card:#1c2230; --card2:#232b3d;
+    --line:#2c3547; --ink:#f2f5fa; --mut:#9aa7bd; --mut2:#6b7791;
+    --red:#e23b3b; --red2:#ff5a4d; --amber:#f5a623; --green:#3ecf8e;
+    --blue:#4aa8ff; --purple:#9b7dff; --cyan:#37d0d6;
+    --shadow:0 8px 30px rgba(0,0,0,.45);
+    --r:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:
+      radial-gradient(1200px 500px at 50% -200px,rgba(226,59,59,.12),transparent 60%),
+      var(--bg);
+    color:var(--ink);
+    min-height:100vh;
+    padding:0 0 90px;
+    -webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:0 16px}
+
+  header{text-align:center;padding:26px 16px 10px;position:relative}
+  .flag{
+    height:10px;width:100%;max-width:820px;margin:0 auto 18px;border-radius:4px;
+    background-image:
+      linear-gradient(45deg,#141821 25%,transparent 25%,transparent 75%,#141821 75%,#141821),
+      linear-gradient(45deg,#141821 25%,#e9edf5 25%,#e9edf5 75%,#141821 75%,#141821);
+    background-size:20px 20px;background-position:0 0,10px 10px;opacity:.55;
+  }
+  h1{margin:0;font-size:26px;letter-spacing:3px;font-weight:800}
+  h1 .hl{color:var(--red2)}
+  .sub{color:var(--mut);font-size:13px;margin-top:4px;letter-spacing:.5px}
+
+  .tabs{display:flex;gap:6px;margin:18px 0 6px;flex-wrap:wrap}
+  .tab{
+    flex:1;min-width:100px;padding:11px 6px;border-radius:12px;border:1px solid var(--line);
+    background:var(--card);color:var(--mut);font-weight:700;font-size:13.5px;
+    cursor:pointer;text-align:center;transition:.15s;white-space:nowrap;
+  }
+  .tab.active{background:linear-gradient(180deg,var(--red),#b52a2a);color:#fff;border-color:var(--red);box-shadow:0 4px 14px rgba(226,59,59,.35)}
+
+  .panel{display:none;animation:fade .25s ease}
+  .panel.active{display:block}
+  @keyframes fade{from{opacity:0;transform:translateY(6px)}to{opacity:1;transform:none}}
+
+  .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-top:14px;box-shadow:var(--shadow)}
+  .row{display:flex;gap:10px;flex-wrap:wrap;align-items:center}
+  label.fld{display:block;font-size:12px;color:var(--mut);margin:0 0 6px;letter-spacing:.4px;text-transform:uppercase}
+  select,input[type=number],input[type=text]{
+    width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);
+    padding:12px;border-radius:10px;font-size:16px;outline:none;
+  }
+  select:focus,input:focus{border-color:var(--red2)}
+  .grow{flex:1;min-width:120px}
+  .sectionTitle{font-size:12px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;font-weight:800;margin:16px 0 8px}
+
+  button.act{
+    width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;
+    letter-spacing:.5px;cursor:pointer;color:#fff;margin-top:14px;
+    background:linear-gradient(180deg,var(--red2),var(--red));box-shadow:0 6px 20px rgba(226,59,59,.4);
+    transition:transform .08s;
+  }
+  button.act:active{transform:scale(.98)}
+  button.act.sec{background:var(--card2);border:1px solid var(--line);box-shadow:none;font-size:15px;padding:12px}
+  .mini{padding:10px 12px;font-size:13px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);cursor:pointer;font-weight:600}
+
+  .result{margin-top:18px}
+  .rescard{
+    border-radius:var(--r);padding:16px;margin-top:12px;border:1px solid var(--line);
+    background:linear-gradient(180deg,var(--card2),var(--card));position:relative;overflow:hidden;
+    animation:pop .35s cubic-bezier(.2,.9,.3,1.2) both;
+  }
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .tag{
+    display:inline-block;font-size:11px;font-weight:800;letter-spacing:1px;text-transform:uppercase;
+    padding:3px 9px;border-radius:20px;margin-bottom:8px;
+  }
+  .t-weather{background:rgba(74,168,255,.16);color:var(--blue)}
+  .t-race{background:rgba(245,166,35,.16);color:var(--amber)}
+  .t-event{background:rgba(155,125,255,.16);color:var(--purple)}
+  .t-track{background:rgba(62,207,142,.16);color:var(--green)}
+  .t-grid{background:rgba(55,208,214,.16);color:var(--cyan)}
+  .rescard h3{margin:2px 0 4px;font-size:20px}
+  .rescard p{margin:0;color:var(--mut);font-size:14px;line-height:1.5}
+
+  .sectors{margin-top:6px}
+  .sector{
+    display:flex;align-items:center;gap:12px;padding:11px 12px;border-radius:12px;
+    background:var(--bg2);border:1px solid var(--line);margin-top:8px;animation:pop .3s both;
+  }
+  .sector .num{
+    min-width:34px;height:34px;border-radius:9px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;background:var(--card2);border:1px solid var(--line);font-size:14px;color:var(--mut)
+  }
+  .sector .body{flex:1}
+  .sector .body b{font-size:15px}
+  .sector .body span{display:block;color:var(--mut);font-size:12.5px;margin-top:1px}
+  .pill{font-size:10px;font-weight:700;padding:2px 7px;border-radius:12px;text-transform:uppercase;letter-spacing:.5px}
+  .p-corner{background:rgba(245,166,35,.15);color:var(--amber)}
+  .p-sector{background:rgba(55,208,214,.15);color:var(--cyan)}
+  .p-weatherfx{background:rgba(74,168,255,.15);color:var(--blue)}
+
+  .racecard{
+    border-radius:14px;padding:14px 16px;margin-top:10px;border:1px solid var(--line);
+    background:linear-gradient(180deg,var(--card2),var(--card));animation:pop .3s both;
+  }
+  .racecard .rn{font-size:11px;letter-spacing:1px;color:var(--mut);text-transform:uppercase;font-weight:700}
+  .racecard .tk{font-size:19px;font-weight:800;margin:3px 0 6px}
+  .racecard .ev b{color:var(--purple)}
+  .racecard .ev span{color:var(--mut);font-size:13px}
+  .condgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(170px,1fr));gap:4px 12px;margin-top:8px}
+  .condrow{font-size:12.5px;color:var(--mut);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .condrow .cl{display:inline-block;min-width:19px;height:19px;line-height:19px;text-align:center;background:var(--card2);border:1px solid var(--line);border-radius:5px;font-weight:800;color:var(--amber);font-size:11px;margin-right:5px}
+
+  /* Autos / Chips */
+  .chips{display:flex;flex-wrap:wrap;gap:8px;margin-top:4px}
+  .chip{
+    display:flex;align-items:center;gap:7px;padding:8px 13px;border-radius:22px;cursor:pointer;
+    border:1.5px solid var(--line);background:var(--bg2);font-size:14px;font-weight:600;color:var(--mut);
+    transition:.12s;user-select:none;
+  }
+  .chip .dot{width:14px;height:14px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35)}
+  .chip.on{color:var(--ink);border-color:var(--green);background:rgba(62,207,142,.1)}
+  .chip.on::after{content:"✓";color:var(--green);font-weight:800;font-size:12px}
+
+  .gridlist{margin-top:6px}
+  .gridrow{
+    display:flex;align-items:center;gap:12px;padding:10px 12px;border-radius:12px;
+    background:var(--bg2);border:1px solid var(--line);margin-top:8px;animation:pop .3s both;
+  }
+  .gridrow .pos{
+    min-width:38px;height:38px;border-radius:10px;display:flex;align-items:center;justify-content:center;
+    font-weight:800;font-size:15px;background:var(--card2);border:1px solid var(--line);
+  }
+  .gridrow.first .pos{background:linear-gradient(180deg,var(--red2),var(--red));border-color:var(--red)}
+  .gridrow .dot{width:18px;height:18px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35)}
+  .gridrow b{font-size:15px}
+
+  /* Tabelle */
+  .inputgrid{margin-top:6px}
+  .irow{display:flex;align-items:center;gap:10px;padding:7px 0}
+  .irow .dot{width:16px;height:16px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);flex:0 0 16px}
+  .irow .nm{flex:1;font-weight:600;font-size:14.5px}
+  .irow select{flex:0 0 92px;padding:9px;font-size:15px}
+  .irow.dup select{border-color:var(--red2);background:rgba(226,59,59,.12)}
+  .dupwarn{color:var(--red2);font-size:12.5px;margin-top:6px;min-height:15px;font-weight:600}
+
+  .tblwrap{overflow-x:auto;margin-top:10px;border-radius:12px;border:1px solid var(--line)}
+  table.st{border-collapse:collapse;width:100%;min-width:420px;background:var(--bg2)}
+  table.st th,table.st td{padding:8px 9px;text-align:center;border-bottom:1px solid var(--line);font-size:13px}
+  table.st th{background:var(--card2);color:var(--mut);font-size:11px;text-transform:uppercase;letter-spacing:.5px;position:sticky;top:0}
+  table.st th .cc{display:block;font-size:10px;color:var(--mut2);letter-spacing:1px;margin-top:1px}
+  table.st td.car{text-align:left;white-space:nowrap;font-weight:700;font-size:13.5px}
+  table.st td.car .dot{display:inline-block;width:13px;height:13px;border-radius:50%;border:1.5px solid rgba(255,255,255,.35);margin-right:7px;vertical-align:-2px}
+  table.st td .big{font-size:16px;font-weight:800;display:block;line-height:1.15}
+  table.st td .sml{font-size:10.5px;color:var(--mut2);display:block}
+  table.st td.tot{font-size:17px;font-weight:800;color:var(--amber)}
+  table.st tr.lead td{background:rgba(245,166,35,.05)}
+  table.st td.rank{color:var(--mut);font-weight:800;width:34px}
+
+  .saverow{display:flex;align-items:center;gap:10px;padding:10px 12px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);margin-top:8px;flex-wrap:wrap}
+  .saverow .nm{flex:1;min-width:130px}
+  .saverow .nm b{font-size:14.5px}
+  .saverow .nm span{display:block;font-size:11.5px;color:var(--mut2);margin-top:2px}
+
+  .hint{font-size:12px;color:var(--mut2);margin-top:10px;line-height:1.5}
+  .empty{text-align:center;color:var(--mut2);padding:26px 10px;font-size:14px}
+
+  details.ed{margin-top:12px;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+  details.ed>summary{padding:14px 16px;cursor:pointer;font-weight:700;list-style:none;display:flex;justify-content:space-between;align-items:center}
+  details.ed>summary::-webkit-details-marker{display:none}
+  details.ed>summary .chev{color:var(--mut);transition:.2s}
+  details.ed[open]>summary .chev{transform:rotate(90deg)}
+  .edbody{padding:0 14px 14px}
+  .edrow{display:flex;gap:8px;align-items:center;padding:9px 0;border-top:1px solid var(--line);flex-wrap:wrap}
+  .edrow input,.edrow select{font-size:14px;padding:9px}
+  .edrow .c1{flex:1 1 130px}
+  .edrow .c2{flex:2 1 200px}
+  .edrow .cs{flex:0 0 62px}
+  .edrow input[type=color]{flex:0 0 44px;height:40px;padding:2px;border-radius:9px;border:1px solid var(--line);background:var(--bg2)}
+  .del{background:transparent;border:none;color:var(--red2);font-size:20px;cursor:pointer;padding:4px 6px;line-height:1}
+  .addbtn{margin-top:10px;width:100%;padding:10px;border-radius:10px;border:1px dashed var(--line);background:transparent;color:var(--mut);cursor:pointer;font-weight:600}
+  .toolsrow{display:flex;gap:8px;margin-top:12px;flex-wrap:wrap}
+  .toolsrow .mini{flex:1;text-align:center}
+  .savemsg{font-size:12px;color:var(--green);margin-top:8px;min-height:14px;text-align:center}
+
+  .note{background:rgba(245,166,35,.09);border:1px solid rgba(245,166,35,.3);border-radius:12px;padding:12px 14px;font-size:12.5px;color:#e8cfa0;margin-top:14px;line-height:1.55}
+  .foot{text-align:center;color:var(--mut2);font-size:11px;margin-top:26px}
+
+  @media(min-width:700px){
+    .cols2{display:flex;gap:14px;align-items:flex-start}
+    .cols2>div{flex:1;min-width:0}
+  }
+</style>
+</head>
+<body>
+<div class="flag"></div>
+<header>
+  <h1>HE<span class="hl">A</span>T</h1>
+  <div class="sub">Renn- & Saison-Randomizer</div>
+</header>
+
+<div class="wrap">
+  <div class="note" id="storageWarn" style="display:none">
+    ⚠️ <b>Kein dauerhafter Speicher möglich.</b> Die App funktioniert, aber Änderungen, Saisons und Punkte gehen beim Schließen verloren.
+    Das passiert z.B. in der Google-Drive-Vorschau oder wenn die Datei direkt aus einem Datei-Manager geöffnet wird.
+    Tipp: Datei in den Download-Ordner legen und mit Chrome/Samsung Internet öffnen – oder Spielstände per „Export“ (Tab Inhalte) sichern.
+  </div>
+  <div class="tabs">
+    <button class="tab active" data-tab="race">🏁 Rennen</button>
+    <button class="tab" data-tab="season">🏆 Saison</button>
+    <button class="tab" data-tab="table">📊 Tabelle</button>
+    <button class="tab" data-tab="edit">⚙️ Inhalte</button>
+  </div>
+
+  <!-- ============ RACE ============ -->
+  <div class="panel active" id="panel-race">
+    <div class="box">
+      <div class="row">
+        <div class="grow">
+          <label class="fld">Strecke</label>
+          <select id="raceTrack"></select>
+        </div>
+        <div style="flex:0 0 96px">
+          <label class="fld">Sektoren</label>
+          <input type="number" id="raceSectors" min="1" max="24" value="6">
+        </div>
+      </div>
+      <div class="sectionTitle">Teilnehmende Autos</div>
+      <div class="chips" id="raceCarChips"></div>
+      <button class="act" id="btnRace">Rennen auslosen</button>
+      <div class="hint">Zieht 1 Wetter, für jede Kurve (A, B, C …) ein Streckenbedingungs-Token und lost die Startaufstellung der gewählten Autos aus – alles fair gemischt.</div>
+    </div>
+    <div class="result" id="raceResult">
+      <div class="empty">Noch nichts ausgelost. Tippe auf „Rennen auslosen“. 🏎️</div>
+    </div>
+  </div>
+
+  <!-- ============ SEASON ============ -->
+  <div class="panel" id="panel-season">
+    <div class="box">
+      <div class="sectionTitle" style="margin-top:0">1 · Teilnehmende Autos</div>
+      <div class="chips" id="carChips"></div>
+
+      <div class="sectionTitle">2 · Saison-Modus</div>
+      <div class="row">
+        <div class="grow">
+          <label class="fld">Modus</label>
+          <select id="seasonMode"></select>
+        </div>
+      </div>
+      <div class="row" id="randomOpts" style="margin-top:10px">
+        <div style="flex:0 0 100px">
+          <label class="fld">Rennen</label>
+          <input type="number" id="seasonRaces" min="1" max="12" value="4">
+        </div>
+        <div class="grow">
+          <label class="fld">Strecken-Pool</label>
+          <select id="seasonTrackMode">
+            <option value="unique">Jede Strecke max. 1×</option>
+            <option value="repeat">Wiederholungen erlaubt</option>
+          </select>
+        </div>
+      </div>
+      <div class="row" style="margin-top:10px">
+        <div class="grow">
+          <label class="fld">Wetter & Streckenbedingungen je Rennen auslosen?</label>
+          <select id="seasonWeather">
+            <option value="yes">Ja</option>
+            <option value="no">Nein</option>
+          </select>
+        </div>
+      </div>
+      <button class="act" id="btnSeason">Saison starten 🏆</button>
+      <div class="hint">Erstellt den Rennkalender (offiziell oder zufällig) und lost die Startaufstellung fürs erste Rennen aus. Die Punkte trägst du dann unter „📊 Tabelle“ ein.</div>
+    </div>
+    <div id="savedSeasons"></div>
+    <div class="result" id="seasonResult">
+      <div class="empty">Noch keine Saison gestartet. 🏆</div>
+    </div>
+  </div>
+
+  <!-- ============ TABLE ============ -->
+  <div class="panel" id="panel-table">
+    <div id="tableArea">
+      <div class="empty">Starte zuerst eine Saison im Tab „🏆 Saison“.</div>
+    </div>
+  </div>
+
+  <!-- ============ EDIT ============ -->
+  <div class="panel" id="panel-edit">
+    <div class="note">
+      Grundspiel + Erweiterungen (Heavy Rain, Tunnel Vision, Rocky Roads) sind komplett vorausgefüllt –
+      Sektoren-Zahlen und die 1966er Saison sind mit den echten Spielplänen/Karten abgeglichen.
+      Alles hier ist frei editierbar und wird lokal in diesem Browser gespeichert.
+    </div>
+
+    <details class="ed">
+      <summary>☁️ Wetter <span class="chev">›</span></summary>
+      <div class="edbody" id="edWeather"></div>
+    </details>
+
+    <details class="ed">
+      <summary>🛣️ Streckenbedingungen <span class="chev">›</span></summary>
+      <div class="edbody" id="edCond"></div>
+    </details>
+
+    <details class="ed">
+      <summary>🃏 Events (Jahr · Rennen · Strecke) <span class="chev">›</span></summary>
+      <div class="edbody" id="edEvents"></div>
+    </details>
+
+    <details class="ed">
+      <summary>🗺️ Strecken <span class="chev">›</span></summary>
+      <div class="edbody" id="edTracks"></div>
+    </details>
+
+    <details class="ed">
+      <summary>🏎️ Autos <span class="chev">›</span></summary>
+      <div class="edbody" id="edCars"></div>
+    </details>
+
+    <details class="ed">
+      <summary>🏅 Punkteverteilung <span class="chev">›</span></summary>
+      <div class="edbody">
+        <div style="padding-top:10px">
+          <label class="fld">Punkte für P1, P2, P3 … (kommagetrennt, danach 0)</label>
+          <input type="text" id="edPoints" placeholder="9,6,4,3,2,1">
+        </div>
+      </div>
+    </details>
+
+    <div class="toolsrow">
+      <button class="mini" id="btnExport">⬇︎ Export (JSON)</button>
+      <button class="mini" id="btnImport">⬆︎ Import</button>
+      <button class="mini" id="btnReset">↺ Zurücksetzen</button>
+    </div>
+    <div class="savemsg" id="saveMsg"></div>
+    <input type="file" id="fileInput" accept="application/json" style="display:none">
+  </div>
+
+  <div class="foot">Faire Mischung via crypto-Zufall · Inhalte & Saison lokal gespeichert</div>
+</div>
+
+<script>
+"use strict";
+
+/* ---------- Fairer Zufall (crypto) ---------- */
+function rnd(n){
+  const max = Math.floor(0xFFFFFFFF / n) * n;
+  const a = new Uint32Array(1);
+  let x;
+  do { crypto.getRandomValues(a); x = a[0]; } while (x >= max);
+  return x % n;
+}
+function shuffle(arr){
+  const a = arr.slice();
+  for (let i=a.length-1;i>0;i--){ const j=rnd(i+1); [a[i],a[j]]=[a[j],a[i]]; }
+  return a;
+}
+function pick(arr){ return arr[rnd(arr.length)]; }
+function LET(i){ let s=""; i++; while(i>0){ i--; s=String.fromCharCode(65+i%26)+s; i=Math.floor(i/26); } return s; }
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+
+/* ---------- Standard-Daten ---------- */
+const DEFAULTS = {
+  weather: [
+    {name:"Sonnig",     setup:"3 Hitze-Karten in den Ablagestapel legen", sector:"Windschatten +2 in Wetter-Sektoren"},
+    {name:"Bewölkt",    setup:"1 Stress-Karte aus dem Deck entfernen",    sector:"Kein Cooldown in Wetter-Sektoren"},
+    {name:"Regen",      setup:"3 Hitze-Karten ins Deck mischen",          sector:"Kühl-Bonus (freies Ablegen) in Wetter-Sektoren"},
+    {name:"Starkregen", setup:"1 Stress-Karte ins Deck mischen",          sector:"Windschatten +2 in Wetter-Sektoren"},
+    {name:"Nebel",      setup:"1 Hitze-Karte in den Motor legen",         sector:"Kein Windschatten in Wetter-Sektoren"},
+    {name:"Eiseskälte", setup:"1 Stress-Karte aus dem Deck entfernen",    sector:"Kühl-Bonus (freies Ablegen) in Wetter-Sektoren"}
+  ],
+  conditions: [
+    {name:"Tempolimit +1",   type:"corner",  effect:"Kurve: Tempolimit um 1 erhöht",           count:2},
+    {name:"Tempolimit −1",   type:"corner",  effect:"Kurve: Tempolimit um 1 gesenkt",          count:2},
+    {name:"Überhitzung",     type:"corner",  effect:"Kurve: +1 Hitze extra bei Übertempo",     count:2},
+    {name:"Windschatten +1", type:"sector",  effect:"Sektor: Windschatten bringt 1 Feld mehr", count:2},
+    {name:"Freies Boosten",  type:"sector",  effect:"Sektor: Boosten kostet keine Hitze",      count:2},
+    {name:"Wetter-Effekt",   type:"weather", effect:"Sektor: aktuelles Wetter greift hier",    count:2}
+  ],
+  // year/race/track = offizielle Saisonzuordnung (1961-63 Grundspiel, 1964 Heavy Rain, 1965 Tunnel Vision, 1966 Rocky Roads)
+  events: [
+    {name:"New Grandstand Inauguration", effect:"Die ersten 3 über die Ziellinie in Runde 1 erhalten sofort 1 Sponsorenkarte.", year:1961, race:1, track:"Great Britain"},
+    {name:"New Speed Record",            effect:"Bei Tempo 15+ sofort 1 Sponsorenkarte erhalten.",                             year:1961, race:2, track:"USA"},
+    {name:"Pilots Strike",               effect:"Rennen 1 Runde kürzer; Sieger erhält 2 Extra-Punkte.",                        year:1961, race:3, track:"Italia"},
+    {name:"Engine Restrictions Lifted",  effect:"Alle starten mit 1 zusätzlichen Hitze-Karte im Motor.",                       year:1962, race:1, track:"Italia"},
+    {name:"Attendance Record",           effect:"Rennen 1 Runde länger; Handkarten auf 8 erhöht.",                             year:1962, race:2, track:"Great Britain"},
+    {name:"Corruption in the Commission",effect:"Die ersten 3 dieses Rennens erhalten 1 Extra-Punkt.",                         year:1962, race:3, track:"France"},
+    {name:"New Main Sponsor",            effect:"Keine Sonderregel – normales Setup.",                                          year:1963, race:1, track:"USA"},
+    {name:"First Live TV Race",          effect:"Überholst du 3+ Autos in deinem Zug: sofort 1 Sponsorenkarte.",               year:1963, race:2, track:"Great Britain"},
+    {name:"New Security Rules",          effect:"Start mit 2 Hitze & 1 Stress weniger; Hand auf 6.",                           year:1963, race:3, track:"France"},
+    {name:"Main Sponsor Withdraws",      effect:"Extra Stress-Karte; ein Dreher = Disqualifikation.",                          year:1963, race:4, track:"Italia"},
+    {name:"Tomorrow, The World…",        effect:"2 statt 1 Sponsorenkarte an Presse-Kurven.",                                  year:1964, race:1, track:"Japan"},
+    {name:"Storm Warning",               effect:"Windschatten nur im 3. oder 4. Gang möglich.",                                year:1964, race:2, track:"France"},
+    {name:"Chicanes for more Safety",    effect:"In der Ablagephase dürfen Hitze-Karten abgelegt werden.",                     year:1964, race:3, track:"Mexico"},
+    {name:"Heavy Rain Expected",         effect:"Keine Adrenalin-Karten in diesem Rennen.",                                    year:1964, race:4, track:"Japan"},
+    {name:"Hold on Tight",               effect:"Max. 1 Karte pro Zug ablegen.",                                               year:1965, race:1, track:"Great Britain"},
+    {name:"Smile and Wave",              effect:"Sponsoren an Presse-Kurven nur unter Tempolimit.",                            year:1965, race:2, track:"USA"},
+    {name:"Tunnel Vision",               effect:"In Schritt 8 dürfen Stress-Karten abgelegt werden.",                          year:1965, race:3, track:"España"},
+    {name:"The Pressure Cooker",         effect:"Rennen 1 Runde länger; nach jeder Runde 1 Hitze aus dem Spiel.",              year:1965, race:4, track:"Nederland"},
+    {name:"Tight Maneuvers",             effect:"Dein gesamter Windschatten-Wert ist um 1 reduziert.",                        year:1966, race:1, track:"France"},
+    {name:"Smooth Start",                effect:"Vor dem Rennen: Lege alle deine Stress-Karten in deinen Ablagestapel.",      year:1966, race:2, track:"Deutschland"},
+    {name:"The Crowd Goes Wild",         effect:"Die ersten 2 Fahrer über die Linie der B-Kurve jeder Runde erhalten sofort 1 Sponsorenkarte. Legends zählen mit, auch wenn sie keinen Nutzen davon haben.", year:1966, race:3, track:"Italia"},
+    {name:"Consulting the Mechanics",    effect:"Vor dem Rennen wählt jeder Fahrer in Startreihenfolge: +1 Hitze- & +1 Stress-Karte ODER −1 Hitze- & −1 Stress-Karte.", year:1966, race:4, track:"Südafrika"}
+  ],
+  // sectors = Anzahl Abschnitte (von Florian mit den Spielplänen abgeglichen)
+  tracks: [
+    {name:"Great Britain", code:"GB", sectors:5},
+    {name:"USA",           code:"USA",sectors:4},
+    {name:"France",        code:"FR", sectors:5},
+    {name:"Italia",        code:"IT", sectors:3},
+    {name:"Japan",         code:"JP", sectors:5},
+    {name:"Mexico",        code:"MX", sectors:6},
+    {name:"España",        code:"ES", sectors:11},
+    {name:"Nederland",     code:"NL", sectors:5},
+    {name:"Südafrika",     code:"ZA", sectors:7},
+    {name:"Deutschland",   code:"DE", sectors:6}
+  ],
+  cars: [
+    {name:"Schwarz", color:"#23252b", active:true},
+    {name:"Silber",  color:"#b9c0cc", active:true},
+    {name:"Blau",    color:"#2f6fd0", active:true},
+    {name:"Gelb",    color:"#f5d327", active:true},
+    {name:"Rot",     color:"#d63434", active:false},
+    {name:"Grün",    color:"#2f9e57", active:false},
+    {name:"Orange",  color:"#f08a24", active:false},
+    {name:"Lila",    color:"#8a5bd6", active:false},
+    {name:"Weiß",    color:"#f2f2f2", active:false}
+  ],
+  points: [9,6,4,3,2,1]
+};
+const SEASON_LABELS = {1961:"Grundspiel",1962:"Grundspiel",1963:"Grundspiel",1964:"Heavy Rain",1965:"Tunnel Vision",1966:"Rocky Roads"};
+
+/* ---------- Persistenz ---------- */
+const KEY = "heatRandomizer.v3";
+const KEY_SEASON = "heatRandomizer.season.v3";
+const KEY_STORE = "heatRandomizer.savedSeasons.v1";
+let DATA, SEASON, STORE = [];
+function load(){
+  DATA = null;
+  try{ const raw = localStorage.getItem(KEY); if(raw) DATA = JSON.parse(raw); }catch(e){}
+  if(!DATA || !DATA.cars || !DATA.points){ DATA = JSON.parse(JSON.stringify(DEFAULTS)); }
+  try{ const rs = localStorage.getItem(KEY_SEASON); if(rs) SEASON = JSON.parse(rs); }catch(e){}
+  try{ const st = localStorage.getItem(KEY_STORE); if(st) STORE = JSON.parse(st)||[]; }catch(e){}
+}
+function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DATA)); }catch(e){} }
+function saveSeason(){ try{ if(SEASON) localStorage.setItem(KEY_SEASON, JSON.stringify(SEASON)); else localStorage.removeItem(KEY_SEASON); }catch(e){} }
+function saveStore(){ try{ localStorage.setItem(KEY_STORE, JSON.stringify(STORE)); }catch(e){} }
+load();
+
+/* ---------- Tabs ---------- */
+document.querySelectorAll(".tab").forEach(t=>{
+  t.addEventListener("click",()=>{
+    document.querySelectorAll(".tab").forEach(x=>x.classList.remove("active"));
+    document.querySelectorAll(".panel").forEach(x=>x.classList.remove("active"));
+    t.classList.add("active");
+    document.getElementById("panel-"+t.dataset.tab).classList.add("active");
+    if(t.dataset.tab==="table") renderTable();
+    if(t.dataset.tab==="season") renderSeasonControls();
+  });
+});
+
+/* ---------- Helpers ---------- */
+function trackByName(n){ return DATA.tracks.find(t=>t.name===n); }
+function carColor(name){ const c = DATA.cars.find(x=>x.name===name); return c?c.color:"#888"; }
+function pointsFor(place){
+  const p = DATA.points || [9,6,4,3,2,1];
+  return (place>=1 && place<=p.length) ? p[place-1] : 0;
+}
+
+/* ================= RACE TAB ================= */
+function fillTrackSelect(){
+  const sel = document.getElementById("raceTrack");
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const opt0 = document.createElement("option");
+  opt0.value = "__any__"; opt0.textContent = "Zufällige Strecke";
+  sel.appendChild(opt0);
+  DATA.tracks.forEach(t=>{
+    const o=document.createElement("option");
+    o.value=t.name; o.textContent=t.name+" ("+t.sectors+" Sekt.)";
+    sel.appendChild(o);
+  });
+  if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  syncSectors();
+}
+function syncSectors(){
+  const t = trackByName(document.getElementById("raceTrack").value);
+  if(t) document.getElementById("raceSectors").value = t.sectors;
+}
+document.getElementById("raceTrack").addEventListener("change",syncSectors);
+
+function drawConditions(n){
+  let bag = [];
+  DATA.conditions.forEach(c=>{ for(let i=0;i<(c.count||1);i++) bag.push(c); });
+  bag = shuffle(bag);
+  const drawn=[];
+  for(let i=0;i<n;i++){
+    if(bag.length===0){
+      DATA.conditions.forEach(c=>{ for(let k=0;k<(c.count||1);k++) bag.push(c); });
+      bag = shuffle(bag);
+    }
+    drawn.push(bag.pop());
+  }
+  return drawn;
+}
+
+let RACE = null;
+function drawRace(){
+  const trackSel = document.getElementById("raceTrack").value;
+  let trackName = trackSel;
+  if(trackSel==="__any__"){
+    const t = pick(DATA.tracks); trackName = t ? t.name : "—";
+    document.getElementById("raceTrack").value = t ? t.name : "__any__";
+    syncSectors();
+  }
+  let n = parseInt(document.getElementById("raceSectors").value,10);
+  if(!n || n<1) n=1; if(n>24) n=24;
+  const cars = DATA.cars.filter(c=>c.active).map(c=>c.name);
+  RACE = {
+    trackName, n,
+    weather: pick(DATA.weather),
+    drawn: drawConditions(n),
+    grid: cars.length ? shuffle(cars) : null
+  };
+  renderRaceResult();
+}
+function renderRaceResult(){
+  if(!RACE) return;
+  const {trackName,n,weather,drawn,grid} = RACE;
+  let html = `<div class="rescard">
+      <span class="tag t-track">Strecke</span>
+      <h3>${esc(trackName)}</h3><p>${n} Kurve${n>1?"n":""} (A–${LET(n-1)})</p>
+    </div>`;
+  if(grid){
+    html += `<div class="rescard" style="animation-delay:.04s"><span class="tag t-grid">Startaufstellung (zufällig)</span><div class="gridlist">`;
+    grid.forEach((c,i)=>{
+      html += `<div class="gridrow ${i===0?"first":""}" style="animation-delay:${0.05+i*0.04}s">
+        <div class="pos">${i+1}</div>
+        <span class="dot" style="background:${esc(carColor(c))}"></span><b>${esc(c)}</b>
+        ${i===0?'<span style="color:var(--mut);font-size:12px">Pole Position</span>':''}</div>`;
+    });
+    html += `</div><button class="act sec" id="btnRaceRegrid">🎲 Startaufstellung neu losen</button></div>`;
+  }
+  html += `<div class="rescard" style="animation-delay:.08s">
+      <span class="tag t-weather">Wetter</span>
+      <h3>${esc(weather.name)}</h3>
+      <p><b>Setup:</b> ${esc(weather.setup)}<br><b>Wetter-Sektoren:</b> ${esc(weather.sector)}</p>
+    </div>`;
+  let sec = `<div class="rescard" style="animation-delay:.12s"><span class="tag t-race">Streckenbedingungen</span><div class="sectors">`;
+  drawn.forEach((c,i)=>{
+    const pc = c.type==="corner" ? "p-corner" : (c.type==="weather" ? "p-weatherfx":"p-sector");
+    const pt = c.type==="corner" ? "Kurve" : (c.type==="weather" ? "Wetter":"Sektor");
+    sec += `<div class="sector" style="animation-delay:${0.14+i*0.04}s">
+        <div class="num">${LET(i)}</div>
+        <div class="body"><b>${esc(c.name)}</b> <span class="pill ${pc}">${pt}</span>
+        <span>${esc(c.effect)}</span></div></div>`;
+  });
+  sec += `</div></div>`;
+  document.getElementById("raceResult").innerHTML = html + sec;
+  const rg = document.getElementById("btnRaceRegrid");
+  if(rg) rg.addEventListener("click",()=>{ RACE.grid = shuffle(RACE.grid); renderRaceResult(); });
+}
+document.getElementById("btnRace").addEventListener("click",drawRace);
+
+/* ================= SEASON TAB ================= */
+function officialSeasons(){
+  const byYear = {};
+  DATA.events.forEach(e=>{
+    if(e.year && e.race){ (byYear[e.year]=byYear[e.year]||[]).push(e); }
+  });
+  Object.values(byYear).forEach(list=>list.sort((a,b)=>a.race-b.race));
+  return byYear;
+}
+function renderCarChips(container){
+  if(!container) return;
+  container.innerHTML = "";
+  DATA.cars.forEach(c=>{
+    const chip = document.createElement("div");
+    chip.className = "chip"+(c.active?" on":"");
+    chip.innerHTML = `<span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}`;
+    chip.addEventListener("click",()=>{ c.active=!c.active; save(); renderAllChips(); if(document.getElementById("panel-table").classList.contains("active")) renderTable(); });
+    container.appendChild(chip);
+  });
+}
+function renderAllChips(){
+  renderCarChips(document.getElementById("carChips"));
+  renderCarChips(document.getElementById("raceCarChips"));
+}
+function renderSeasonControls(){
+  renderAllChips();
+  // Modus-Select
+  const sel = document.getElementById("seasonMode");
+  const cur = sel.value;
+  sel.innerHTML = "";
+  const byYear = officialSeasons();
+  Object.keys(byYear).sort().forEach(y=>{
+    const o = document.createElement("option");
+    o.value = "y"+y;
+    o.textContent = `Offizielle Saison ${y} (${byYear[y].length} Rennen · ${SEASON_LABELS[y]||"?"})`;
+    sel.appendChild(o);
+  });
+  const oR = document.createElement("option");
+  oR.value="random"; oR.textContent="Zufalls-Saison 🎲";
+  sel.appendChild(oR);
+  if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  toggleRandomOpts();
+}
+function toggleRandomOpts(){
+  const isRandom = document.getElementById("seasonMode").value==="random";
+  document.getElementById("randomOpts").style.display = isRandom ? "flex" : "none";
+}
+document.getElementById("seasonMode").addEventListener("change",toggleRandomOpts);
+
+function startSeason(){
+  const cars = DATA.cars.filter(c=>c.active).map(c=>c.name);
+  if(cars.length<1){ alert("Bitte mindestens 1 Auto auswählen."); return; }
+  const mode = document.getElementById("seasonMode").value;
+  const withWeather = document.getElementById("seasonWeather").value==="yes";
+  let races = [];
+
+  const condDraw = t => drawConditions(t && t.sectors ? t.sectors : 6)
+      .map((c,i)=>({l:LET(i), n:c.name, e:c.effect}));
+
+  if(mode.startsWith("y")){
+    const y = mode.slice(1);
+    const evs = officialSeasons()[y]||[];
+    races = evs.map(e=>{
+      const t = trackByName(e.track);
+      return {
+        track: e.track || "— (im Editor eintragen)",
+        code: t ? t.code : (e.track? e.track.slice(0,3).toUpperCase() : "?"),
+        event: {name:e.name, effect:e.effect},
+        weather: withWeather ? pick(DATA.weather).name : null,
+        conditions: withWeather ? condDraw(t) : null
+      };
+    });
+  } else {
+    let n = parseInt(document.getElementById("seasonRaces").value,10);
+    if(!n||n<1) n=1; if(n>24) n=24;
+    const tmode = document.getElementById("seasonTrackMode").value;
+    let evPool = shuffle(DATA.events);
+    let tp = shuffle(DATA.tracks);
+    for(let i=0;i<n;i++){
+      if(evPool.length===0) evPool = shuffle(DATA.events);
+      const ev = evPool.pop();
+      let t;
+      if(tmode==="unique"){ if(tp.length===0) tp = shuffle(DATA.tracks); t = tp.pop(); }
+      else t = pick(DATA.tracks);
+      races.push({
+        track: t?t.name:"—", code: t?t.code:"?",
+        event: {name:ev.name, effect:ev.effect},
+        weather: withWeather ? pick(DATA.weather).name : null,
+        conditions: withWeather ? condDraw(t) : null
+      });
+    }
+  }
+
+  SEASON = {
+    label: mode.startsWith("y") ? "Saison "+mode.slice(1) : "Zufalls-Saison",
+    cars: cars,
+    races: races,
+    results: races.map(()=> ({})),
+    startGrid: shuffle(cars)
+  };
+  saveSeason();
+  renderSeasonResult();
+  renderSavedSeasons();
+  renderTable();
+}
+document.getElementById("btnSeason").addEventListener("click",startSeason);
+
+function renderSeasonResult(){
+  const el = document.getElementById("seasonResult");
+  if(!SEASON){ el.innerHTML = '<div class="empty">Noch keine Saison gestartet. 🏆</div>'; return; }
+  let html = `<div class="rescard"><span class="tag t-grid">Startaufstellung · Rennen 1 (zufällig)</span><div class="gridlist">`;
+  SEASON.startGrid.forEach((c,i)=>{
+    html += `<div class="gridrow ${i===0?"first":""}" style="animation-delay:${i*0.05}s">
+      <div class="pos">${i+1}</div>
+      <span class="dot" style="background:${esc(carColor(c))}"></span><b>${esc(c)}</b>
+      ${i===0?'<span style="color:var(--mut);font-size:12px">Pole Position</span>':''}
+    </div>`;
+  });
+  html += `</div><button class="act sec" id="btnRegrid">🎲 Startaufstellung neu losen</button></div>`;
+
+  html += `<div class="box" style="margin-top:12px"><b>${esc(SEASON.label)} · ${SEASON.races.length} Rennen</b></div>`;
+  SEASON.races.forEach((r,i)=>{
+    html += `<div class="racecard" style="animation-delay:${i*0.05}s">
+      <div class="rn">Rennen ${i+1} · ${esc(r.code)}</div>
+      <div class="tk">🏁 ${esc(r.track)}</div>
+      <div class="ev">🃏 <b>${esc(r.event.name)}</b><br><span>${esc(r.event.effect)}</span></div>
+      ${r.weather?`<div class="ev" style="margin-top:5px">☁️ Wetter: <b style="color:var(--blue)">${esc(r.weather)}</b></div>`:""}
+      ${r.conditions?`<div class="condgrid">${r.conditions.map(c=>`<div class="condrow" title="${esc(c.e)}"><span class="cl">${esc(c.l)}</span>${esc(c.n)}</div>`).join("")}</div>`:""}
+    </div>`;
+  });
+  html += `<div class="hint">Ab Rennen 2 ergibt sich die Startaufstellung aus der Saisonwertung – siehe Tab „📊 Tabelle“.</div>`;
+  el.innerHTML = html;
+  const rg = document.getElementById("btnRegrid");
+  if(rg) rg.addEventListener("click",()=>{ SEASON.startGrid = shuffle(SEASON.cars); saveSeason(); renderSeasonResult(); });
+}
+
+/* ---------- Gespeicherte Saisons ---------- */
+function seasonProgress(s){
+  const done = s.results.filter(r=>Object.keys(r).length>0).length;
+  return done+"/"+s.races.length+" Rennen eingetragen";
+}
+function renderSavedSeasons(){
+  const el = document.getElementById("savedSeasons");
+  if(!el) return;
+  let html = `<div class="box"><div class="sectionTitle" style="margin-top:0">💾 Gespeicherte Saisons</div>`;
+  if(SEASON){
+    html += `<button class="act sec" id="btnSaveSeason" style="margin-top:0">💾 Laufende Saison speichern</button>`;
+  }
+  if(!STORE.length){
+    html += `<div class="hint">Noch keine Saison gespeichert. ${SEASON?"Speichere die laufende Saison, wenn ihr an einem Abend nicht fertig werdet.":"Starte eine Saison – dann kannst du sie hier ablegen und später fortsetzen."}</div>`;
+  } else {
+    STORE.forEach((s,i)=>{
+      html += `<div class="saverow">
+        <div class="nm"><b>${esc(s.name)}</b>
+        <span>${esc(s.season.label)} · ${s.season.cars.length} Autos · ${esc(seasonProgress(s.season))} · ${esc(s.savedAt||"")}</span></div>
+        <button class="mini" data-load="${i}">▶ Fortsetzen</button>
+        <button class="mini" data-del="${i}" style="color:var(--red2)">🗑</button>
+      </div>`;
+    });
+  }
+  html += `</div>`;
+  el.innerHTML = html;
+
+  const sb = document.getElementById("btnSaveSeason");
+  if(sb) sb.addEventListener("click",()=>{
+    const defName = SEASON.label+" vom "+new Date().toLocaleDateString("de-DE");
+    const name = prompt("Name für die gespeicherte Saison:", defName);
+    if(!name) return;
+    const snap = {name:name.trim(), savedAt:new Date().toLocaleDateString("de-DE"), season:JSON.parse(JSON.stringify(SEASON))};
+    const idx = STORE.findIndex(x=>x.name===snap.name);
+    if(idx>=0){
+      if(!confirm(`„${snap.name}“ existiert schon – überschreiben?`)) return;
+      STORE[idx]=snap;
+    } else STORE.unshift(snap);
+    saveStore(); renderSavedSeasons();
+  });
+  el.querySelectorAll("[data-load]").forEach(b=>b.addEventListener("click",()=>{
+    const s = STORE[parseInt(b.dataset.load,10)];
+    if(!s) return;
+    if(SEASON && !confirm(`„${s.name}“ laden? Die aktuell laufende Saison wird ersetzt – ggf. vorher speichern!`)) return;
+    SEASON = JSON.parse(JSON.stringify(s.season));
+    saveSeason(); renderSeasonResult(); renderSavedSeasons(); renderTable();
+  }));
+  el.querySelectorAll("[data-del]").forEach(b=>b.addEventListener("click",()=>{
+    const i = parseInt(b.dataset.del,10);
+    if(!STORE[i]) return;
+    if(!confirm(`„${STORE[i].name}“ wirklich löschen?`)) return;
+    STORE.splice(i,1); saveStore(); renderSavedSeasons();
+  }));
+}
+
+/* ================= TABLE TAB ================= */
+let curRace = 0;
+
+function cumulativePoints(car, uptoIdx){
+  let s=0;
+  for(let i=0;i<=uptoIdx;i++){
+    const pl = SEASON.results[i][car];
+    if(pl) s += pointsFor(pl);
+  }
+  return s;
+}
+function totalPoints(car){ return cumulativePoints(car, SEASON.races.length-1); }
+
+function standings(){
+  const cars = SEASON.cars.slice();
+  // letztes Rennen mit irgendeinem Ergebnis
+  cars.sort((a,b)=>{
+    const d = totalPoints(b)-totalPoints(a);
+    if(d!==0) return d;
+    // Tiebreak: bessere Platzierung im zuletzt gefahrenen Rennen, dann davor, usw.
+    for(let i=SEASON.races.length-1;i>=0;i--){
+      const pa = SEASON.results[i][a], pb = SEASON.results[i][b];
+      if(pa && pb && pa!==pb) return pa-pb;
+      if(pa && !pb) return -1;
+      if(pb && !pa) return 1;
+    }
+    return a.localeCompare(b);
+  });
+  return cars;
+}
+
+function renderTable(){
+  const area = document.getElementById("tableArea");
+  if(!SEASON){ area.innerHTML = '<div class="empty">Starte zuerst eine Saison im Tab „🏆 Saison“.</div>'; return; }
+  if(curRace >= SEASON.races.length) curRace = 0;
+
+  const N = SEASON.cars.length;
+  const res = SEASON.results[curRace];
+
+  /* Eingabe */
+  let inp = `<div class="box"><div class="sectionTitle" style="margin-top:0">Ergebnis eintragen</div>
+    <div class="row">
+      <div class="grow"><label class="fld">Rennen</label><select id="selRace">`;
+  SEASON.races.forEach((r,i)=>{
+    inp += `<option value="${i}" ${i===curRace?"selected":""}>Rennen ${i+1} · ${esc(r.code)} – ${esc(r.track)}</option>`;
+  });
+  inp += `</select></div></div><div class="inputgrid">`;
+
+  // Duplikate erkennen
+  const used = {};
+  SEASON.cars.forEach(c=>{ const p=res[c]; if(p){ used[p]=(used[p]||0)+1; } });
+
+  SEASON.cars.forEach(c=>{
+    const p = res[c]||"";
+    const dup = p && used[p]>1;
+    let opts = `<option value="">–</option>`;
+    for(let i=1;i<=N;i++) opts += `<option value="${i}" ${p==i?"selected":""}>P${i}</option>`;
+    inp += `<div class="irow ${dup?"dup":""}">
+      <span class="dot" style="background:${esc(carColor(c))}"></span>
+      <span class="nm">${esc(c)}</span>
+      <select data-car="${esc(c)}" class="plc">${opts}</select>
+    </div>`;
+  });
+  const dupAny = Object.values(used).some(v=>v>1);
+  inp += `</div><div class="dupwarn">${dupAny?"⚠️ Achtung: doppelte Platzierung!":""}</div>
+    <div class="hint">Punkte: ${ (DATA.points||[]).map((p,i)=>"P"+(i+1)+"="+p).join(", ") }, danach 0.</div>`;
+  const activeNow = DATA.cars.filter(c=>c.active).map(c=>c.name);
+  const carsChanged = activeNow.length!==SEASON.cars.length || activeNow.some(c=>!SEASON.cars.includes(c));
+  if(carsChanged){
+    inp += `<button class="act sec" id="btnSyncCars">🔄 Auto-Auswahl in laufende Saison übernehmen (${activeNow.length} Autos)</button>
+      <div class="hint">Die Saison nutzt noch die Autos vom Saisonstart. Übernehmen fügt neue Autos hinzu bzw. entfernt abgewählte – bereits eingetragene Punkte bleiben erhalten.</div>`;
+  }
+  inp += `</div>`;
+
+  /* Tabelle */
+  const order = standings();
+  let tbl = `<div class="box"><div class="sectionTitle" style="margin-top:0">Saisonwertung</div><div class="tblwrap"><table class="st"><thead><tr><th></th><th style="text-align:left">Auto</th>`;
+  SEASON.races.forEach((r,i)=>{
+    tbl += `<th>R${i+1}<span class="cc">${esc(r.code)}</span></th>`;
+  });
+  tbl += `<th>Σ</th></tr></thead><tbody>`;
+  order.forEach((c,rank)=>{
+    tbl += `<tr class="${rank===0?"lead":""}"><td class="rank">${rank+1}.</td><td class="car"><span class="dot" style="background:${esc(carColor(c))}"></span>${esc(c)}</td>`;
+    SEASON.races.forEach((r,i)=>{
+      const pl = SEASON.results[i][c];
+      if(pl){
+        const cum = cumulativePoints(c,i);
+        const pts = pointsFor(pl);
+        tbl += `<td><span class="big">${cum}</span><span class="sml">${i>0?"+"+pts+" · ":""}P${pl}</span></td>`;
+      } else {
+        tbl += `<td><span class="sml">–</span></td>`;
+      }
+    });
+    tbl += `<td class="tot">${totalPoints(c)}</td></tr>`;
+  });
+  tbl += `</tbody></table></div>`;
+
+  /* Startaufstellung nächstes Rennen */
+  let nextIdx = SEASON.results.findIndex(r=>Object.keys(r).length===0);
+  let grid = "";
+  if(nextIdx === 0 || (nextIdx===-1 && Object.keys(SEASON.results[0]).length===0)){
+    grid = `<div class="hint">Startaufstellung Rennen 1: siehe Tab „🏆 Saison“ (zufällig gelost).</div>`;
+  } else {
+    const label = nextIdx===-1 ? "Endstand 🏆" : `Startaufstellung · Rennen ${nextIdx+1} (${esc(SEASON.races[nextIdx].code)})`;
+    grid = `<div class="sectionTitle">${label}</div><div class="gridlist">`;
+    order.forEach((c,i)=>{
+      grid += `<div class="gridrow ${i===0?"first":""}"><div class="pos">${i+1}</div>
+        <span class="dot" style="background:${esc(carColor(c))}"></span><b>${esc(c)}</b>
+        ${nextIdx===-1&&i===0?'<span style="font-size:16px">🏆</span>':''}</div>`;
+    });
+    grid += `</div>`;
+  }
+  tbl += grid;
+  tbl += `<button class="act sec" id="btnClearSeason" style="margin-top:16px">🗑 Saison zurücksetzen</button></div>`;
+
+  area.innerHTML = `<div class="cols2"><div>${inp}</div><div>${tbl}</div></div>`;
+
+  document.getElementById("selRace").addEventListener("change",e=>{ curRace = parseInt(e.target.value,10); renderTable(); });
+  area.querySelectorAll("select.plc").forEach(s=>{
+    s.addEventListener("change",()=>{
+      const car = s.dataset.car;
+      const v = s.value ? parseInt(s.value,10) : null;
+      if(v) SEASON.results[curRace][car] = v; else delete SEASON.results[curRace][car];
+      saveSeason(); renderTable();
+    });
+  });
+  const sync = document.getElementById("btnSyncCars");
+  if(sync) sync.addEventListener("click",()=>{
+    const newCars = DATA.cars.filter(c=>c.active).map(c=>c.name);
+    if(newCars.length<1){ alert("Bitte mindestens 1 Auto auswählen."); return; }
+    SEASON.cars = newCars;
+    SEASON.results.forEach(r=>{ Object.keys(r).forEach(k=>{ if(!newCars.includes(k)) delete r[k]; }); });
+    const noResults = SEASON.results.every(r=>Object.keys(r).length===0);
+    if(noResults) SEASON.startGrid = shuffle(newCars);
+    else SEASON.startGrid = SEASON.startGrid.filter(c=>newCars.includes(c))
+        .concat(shuffle(newCars.filter(c=>!SEASON.startGrid.includes(c))));
+    saveSeason(); renderTable(); renderSeasonResult();
+  });
+  document.getElementById("btnClearSeason").addEventListener("click",()=>{
+    if(confirm("Saison wirklich zurücksetzen? (Kalender & Punkte werden gelöscht)")){
+      SEASON = null; saveSeason(); localStorage.removeItem(KEY_SEASON);
+      renderTable(); renderSeasonResult(); renderSavedSeasons();
+    }
+  });
+}
+
+/* ================= EDITOR ================= */
+function inp(val,ph,cls,onset,type){
+  const i=document.createElement("input"); i.type=type||"text"; i.value=val==null?"":val; i.placeholder=ph; i.className=cls||"";
+  i.addEventListener("input",()=>{onset(i.value);autoSave();});
+  return i;
+}
+function delBtn(fn){const b=document.createElement("button");b.className="del";b.textContent="×";b.title="Löschen";b.addEventListener("click",fn);return b;}
+function addBtn(txt,fn){const b=document.createElement("button");b.className="addbtn";b.textContent=txt;b.addEventListener("click",fn);return b;}
+
+function renderEditors(){
+  // Wetter
+  const w = document.getElementById("edWeather"); w.innerHTML="";
+  DATA.weather.forEach((it,i)=>{
+    const row=document.createElement("div"); row.className="edrow";
+    row.appendChild(inp(it.name,"Name","c1",v=>it.name=v));
+    row.appendChild(inp(it.setup,"Setup-Effekt","c2",v=>it.setup=v));
+    row.appendChild(inp(it.sector,"Sektor-Effekt","c2",v=>it.sector=v));
+    row.appendChild(delBtn(()=>{DATA.weather.splice(i,1);renderEditors();}));
+    w.appendChild(row);
+  });
+  w.appendChild(addBtn("+ Wetter hinzufügen",()=>{DATA.weather.push({name:"Neu",setup:"",sector:""});renderEditors();}));
+
+  // Bedingungen
+  const c = document.getElementById("edCond"); c.innerHTML="";
+  DATA.conditions.forEach((it,i)=>{
+    const row = document.createElement("div"); row.className="edrow";
+    row.appendChild(inp(it.name,"Name","c1",v=>it.name=v));
+    row.appendChild(inp(it.effect,"Effekt","c2",v=>it.effect=v));
+    const cnt=inp(it.count||1,"Anz.","cs",v=>{it.count=parseInt(v,10)||1;},"number"); cnt.min=1;
+    row.appendChild(cnt);
+    row.appendChild(delBtn(()=>{DATA.conditions.splice(i,1);renderEditors();}));
+    c.appendChild(row);
+  });
+  const sum = DATA.conditions.reduce((a,b)=>a+(parseInt(b.count,10)||0),0);
+  const info=document.createElement("div"); info.className="hint";
+  info.innerHTML=`Token im Beutel gesamt: <b style="color:${sum===12?'var(--green)':'var(--amber)'}">${sum}</b> (Grundspiel = 12). Zahl rechts = Anzahl je Token.`;
+  c.appendChild(info);
+  c.appendChild(addBtn("+ Bedingung hinzufügen",()=>{DATA.conditions.push({name:"Neu",type:"sector",effect:"",count:1});renderEditors();}));
+
+  // Events
+  const e = document.getElementById("edEvents"); e.innerHTML="";
+  DATA.events.forEach((it,i)=>{
+    const row=document.createElement("div"); row.className="edrow";
+    row.appendChild(inp(it.name,"Event-Name","c1",v=>it.name=v));
+    row.appendChild(inp(it.effect,"Effekt","c2",v=>it.effect=v));
+    const y=inp(it.year||"","Jahr","cs",v=>{it.year=parseInt(v,10)||null;},"number");
+    const r=inp(it.race||"","R#","cs",v=>{it.race=parseInt(v,10)||null;},"number"); r.style.flex="0 0 52px";
+    const tr=document.createElement("select"); tr.className="cs"; tr.style.flex="0 0 120px";
+    tr.innerHTML = `<option value="">Strecke…</option>`+DATA.tracks.map(t=>`<option value="${esc(t.name)}" ${it.track===t.name?"selected":""}>${esc(t.name)}</option>`).join("");
+    tr.addEventListener("change",()=>{it.track=tr.value;autoSave();});
+    row.appendChild(y); row.appendChild(r); row.appendChild(tr);
+    row.appendChild(delBtn(()=>{DATA.events.splice(i,1);renderEditors();}));
+    e.appendChild(row);
+  });
+  const einfo=document.createElement("div"); einfo.className="hint";
+  einfo.textContent="Jahr + R# + Strecke = Zuordnung für die offiziellen Saisons. In Zufalls-Saisons landen alle Events im Pool (mit und ohne Jahr).";
+  e.appendChild(einfo);
+  e.appendChild(addBtn("+ Event hinzufügen",()=>{DATA.events.push({name:"Neu",effect:"",year:null,race:null,track:""});renderEditors();}));
+
+  // Strecken
+  const t = document.getElementById("edTracks"); t.innerHTML="";
+  DATA.tracks.forEach((it,i)=>{
+    const row=document.createElement("div"); row.className="edrow";
+    row.appendChild(inp(it.name,"Streckenname","c1",v=>{it.name=v;}));
+    const cd=inp(it.code||"","Kürzel","cs",v=>{it.code=v.toUpperCase();});
+    row.appendChild(cd);
+    const s=inp(it.sectors||6,"Sekt.","cs",v=>{it.sectors=parseInt(v,10)||1;fillTrackSelect();},"number"); s.min=1;
+    row.appendChild(s);
+    row.appendChild(delBtn(()=>{DATA.tracks.splice(i,1);renderEditors();fillTrackSelect();}));
+    t.appendChild(row);
+  });
+  const tinfo=document.createElement("div"); tinfo.className="hint";
+  tinfo.textContent="Sekt. = Anzahl Kurven/Abschnitte. Bitte mit deinen Spielplänen abgleichen – Erweiterungswerte sind teils geschätzt!";
+  t.appendChild(tinfo);
+  t.appendChild(addBtn("+ Strecke hinzufügen",()=>{DATA.tracks.push({name:"Neu",code:"XX",sectors:6});renderEditors();fillTrackSelect();}));
+
+  // Autos
+  const ca = document.getElementById("edCars"); ca.innerHTML="";
+  DATA.cars.forEach((it,i)=>{
+    const row=document.createElement("div"); row.className="edrow";
+    const col=document.createElement("input"); col.type="color"; col.value=/^#[0-9a-fA-F]{6}$/.test(it.color)?it.color:"#888888";
+    col.addEventListener("input",()=>{it.color=col.value;autoSave();renderSeasonControls();});
+    row.appendChild(col);
+    row.appendChild(inp(it.name,"Farbe/Name","c1",v=>{it.name=v;renderSeasonControls();}));
+    row.appendChild(delBtn(()=>{DATA.cars.splice(i,1);renderEditors();renderSeasonControls();}));
+    ca.appendChild(row);
+  });
+  ca.appendChild(addBtn("+ Auto hinzufügen",()=>{DATA.cars.push({name:"Neu",color:"#888888",active:true});renderEditors();renderSeasonControls();}));
+
+  // Punkte
+  const pI = document.getElementById("edPoints");
+  pI.value = (DATA.points||[]).join(",");
+  pI.oninput = ()=>{
+    const arr = pI.value.split(",").map(x=>parseInt(x.trim(),10)).filter(x=>!isNaN(x));
+    if(arr.length) DATA.points = arr;
+    autoSave();
+  };
+
+  fillTrackSelect();
+}
+
+let saveTimer=null;
+function autoSave(){
+  save();
+  clearTimeout(saveTimer);
+  const m=document.getElementById("saveMsg"); m.textContent="✓ gespeichert";
+  saveTimer=setTimeout(()=>m.textContent="",1500);
+}
+
+/* Export / Import / Reset */
+document.getElementById("btnExport").addEventListener("click",()=>{
+  const blob=new Blob([JSON.stringify({data:DATA,season:SEASON,store:STORE},null,2)],{type:"application/json"});
+  const a=document.createElement("a");
+  a.href=URL.createObjectURL(blob);
+  a.download="heat-randomizer-daten.json";
+  a.click();
+});
+document.getElementById("btnImport").addEventListener("click",()=>document.getElementById("fileInput").click());
+document.getElementById("fileInput").addEventListener("change",ev=>{
+  const f=ev.target.files[0]; if(!f) return;
+  const r=new FileReader();
+  r.onload=()=>{ try{
+      const obj=JSON.parse(r.result);
+      if(obj.data){ DATA=obj.data; if(obj.season) SEASON=obj.season; if(obj.store) STORE=obj.store; }
+      else DATA=obj; // altes Format
+      save(); saveSeason(); saveStore(); renderEditors(); renderSeasonControls(); renderSeasonResult(); renderSavedSeasons(); renderTable();
+      document.getElementById("saveMsg").textContent="✓ importiert";
+    }catch(e){ document.getElementById("saveMsg").textContent="⚠︎ Datei ungültig"; }
+  };
+  r.readAsText(f);
+});
+document.getElementById("btnReset").addEventListener("click",()=>{
+  if(!confirm("Alle Inhalte auf Standard zurücksetzen? (Saison bleibt erhalten)")) return;
+  DATA=JSON.parse(JSON.stringify(DEFAULTS)); save(); renderEditors(); renderSeasonControls();
+  document.getElementById("saveMsg").textContent="✓ zurückgesetzt";
+});
+
+/* ---------- Init ---------- */
+(function(){
+  let ok=false;
+  try{ localStorage.setItem("__heatTest","1"); localStorage.removeItem("__heatTest"); ok=true; }catch(e){}
+  if(!ok) document.getElementById("storageWarn").style.display="block";
+})();
+renderEditors();
+renderSeasonControls();
+renderSeasonResult();
+renderSavedSeasons();
+fillTrackSelect();
+</script>
+</body>
+</html>
