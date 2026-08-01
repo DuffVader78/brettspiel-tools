@@ -225,7 +225,9 @@
   <!-- ============ RACE ============ -->
   <div class="panel active" id="panel-race">
     <div class="box">
-      <div class="row">
+      <div class="sectionTitle" style="margin-top:0">📦 Material dabei</div>
+      <div class="chips" id="raceBoxChips"></div>
+      <div class="row" style="margin-top:14px">
         <div class="grow">
           <label class="fld">Strecke</label>
           <select id="raceTrack"></select>
@@ -248,10 +250,14 @@
   <!-- ============ SEASON ============ -->
   <div class="panel" id="panel-season">
     <div class="box">
-      <div class="sectionTitle" style="margin-top:0">1 · Teilnehmende Autos</div>
-      <div class="chips" id="carChips"></div>
+      <div class="sectionTitle" style="margin-top:0">1 · 📦 Material dabei</div>
+      <div class="chips" id="seasonBoxChips"></div>
 
-      <div class="sectionTitle">2 · Saison-Modus</div>
+      <div class="sectionTitle">2 · Teilnehmende Autos</div>
+      <div class="chips" id="carChips"></div>
+      <button class="mini" id="btnEditNames" style="margin-top:10px">✎ Spielernamen zuordnen</button>
+
+      <div class="sectionTitle">3 · Saison-Modus</div>
       <div class="row">
         <div class="grow">
           <label class="fld">Modus</label>
@@ -414,33 +420,43 @@ const DEFAULTS = {
     {name:"The Crowd Goes Wild",         effect:"Die ersten 2 Fahrer über die Linie der B-Kurve jeder Runde erhalten sofort 1 Sponsorenkarte. Legends zählen mit, auch wenn sie keinen Nutzen davon haben.", year:1966, race:3, track:"Italia"},
     {name:"Consulting the Mechanics",    effect:"Vor dem Rennen wählt jeder Fahrer in Startreihenfolge: +1 Hitze- & +1 Stress-Karte ODER −1 Hitze- & −1 Stress-Karte.", year:1966, race:4, track:"Südafrika"}
   ],
-  // sectors = Anzahl Abschnitte (von Florian mit den Spielplänen abgeglichen)
+  // sectors = Anzahl Abschnitte (von Florian mit den Spielplänen abgeglichen); box = Materialbox
   tracks: [
-    {name:"Great Britain", code:"GB", sectors:5},
-    {name:"USA",           code:"USA",sectors:4},
-    {name:"France",        code:"FR", sectors:5},
-    {name:"Italia",        code:"IT", sectors:3},
-    {name:"Japan",         code:"JP", sectors:5},
-    {name:"Mexico",        code:"MX", sectors:6},
-    {name:"España",        code:"ES", sectors:11},
-    {name:"Nederland",     code:"NL", sectors:5},
-    {name:"Südafrika",     code:"ZA", sectors:7},
-    {name:"Deutschland",   code:"DE", sectors:6}
+    {name:"Great Britain", code:"GB", sectors:5,  box:"base"},
+    {name:"USA",           code:"USA",sectors:4,  box:"base"},
+    {name:"France",        code:"FR", sectors:5,  box:"base"},
+    {name:"Italia",        code:"IT", sectors:3,  box:"base"},
+    {name:"Japan",         code:"JP", sectors:5,  box:"hr"},
+    {name:"Mexico",        code:"MX", sectors:6,  box:"hr"},
+    {name:"España",        code:"ES", sectors:11, box:"tv"},
+    {name:"Nederland",     code:"NL", sectors:5,  box:"tv"},
+    {name:"Südafrika",     code:"ZA", sectors:7,  box:"rr"},
+    {name:"Deutschland",   code:"DE", sectors:6,  box:"rr"}
   ],
   cars: [
-    {name:"Schwarz", color:"#23252b", active:true},
-    {name:"Silber",  color:"#b9c0cc", active:true},
-    {name:"Blau",    color:"#2f6fd0", active:true},
-    {name:"Gelb",    color:"#f5d327", active:true},
-    {name:"Rot",     color:"#d63434", active:false},
-    {name:"Grün",    color:"#2f9e57", active:false},
-    {name:"Orange",  color:"#f08a24", active:false},
-    {name:"Lila",    color:"#8a5bd6", active:false},
-    {name:"Weiß",    color:"#f2f2f2", active:false}
+    {name:"Schwarz", color:"#23252b", active:true,  box:"base", player:""},
+    {name:"Silber",  color:"#b9c0cc", active:true,  box:"base", player:""},
+    {name:"Blau",    color:"#2f6fd0", active:true,  box:"base", player:""},
+    {name:"Gelb",    color:"#f5d327", active:true,  box:"base", player:""},
+    {name:"Rot",     color:"#d63434", active:false, box:"base", player:""},
+    {name:"Grün",    color:"#2f9e57", active:false, box:"base", player:""},
+    {name:"Orange",  color:"#f08a24", active:false, box:"hr",   player:""},
+    {name:"Lila",    color:"#8a5bd6", active:false, box:"tv",   player:""},
+    {name:"Weiß",    color:"#f2f2f2", active:false, box:"rr",   player:""}
   ],
+  boxesSel: {base:true, hr:true, tv:true, rr:true},
   points: [9,6,4,3,2,1]
 };
 const SEASON_LABELS = {1961:"Grundspiel",1962:"Grundspiel",1963:"Grundspiel",1964:"Heavy Rain",1965:"Tunnel Vision",1966:"Rocky Roads"};
+const BOXES = [
+  {id:"base", name:"Grundspiel"},
+  {id:"hr",   name:"Heavy Rain"},
+  {id:"tv",   name:"Tunnel Vision"},
+  {id:"rr",   name:"Rocky Roads"}
+];
+const YEAR_BOX = {1961:"base",1962:"base",1963:"base",1964:"hr",1965:"tv",1966:"rr"};
+const TRACK_BOX = {"Great Britain":"base","USA":"base","France":"base","Italia":"base","Japan":"hr","Mexico":"hr","España":"tv","Nederland":"tv","Südafrika":"rr","Deutschland":"rr"};
+const CAR_BOX = {"Schwarz":"base","Silber":"base","Blau":"base","Gelb":"base","Rot":"base","Grün":"base","Orange":"hr","Lila":"tv","Weiß":"rr"};
 
 /* ---------- Persistenz ---------- */
 const KEY = "heatRandomizer.v3";
@@ -458,6 +474,34 @@ function save(){ try{ localStorage.setItem(KEY, JSON.stringify(DATA)); }catch(e)
 function saveSeason(){ try{ if(SEASON) localStorage.setItem(KEY_SEASON, JSON.stringify(SEASON)); else localStorage.removeItem(KEY_SEASON); }catch(e){} }
 function saveStore(){ try{ localStorage.setItem(KEY_STORE, JSON.stringify(STORE)); }catch(e){} }
 load();
+/* Migration: ergänzt Box-Zuordnung & Spielernamen in bestehenden Speicherständen */
+(function migrate(){
+  let dirty=false;
+  if(!DATA.boxesSel){ DATA.boxesSel={base:true,hr:true,tv:true,rr:true}; dirty=true; }
+  (DATA.tracks||[]).forEach(t=>{ if(!t.box){ t.box=TRACK_BOX[t.name]||""; dirty=true; } });
+  (DATA.cars||[]).forEach(c=>{
+    if(!c.box){ c.box=CAR_BOX[c.name]||""; dirty=true; }
+    if(c.player==null){ c.player=""; dirty=true; }
+  });
+  if(dirty) save();
+})();
+
+/* ---------- Material-Verfügbarkeit ---------- */
+function boxOn(id){ return !id || DATA.boxesSel[id]!==false; }
+const trackAvail = t => boxOn(t.box);
+const carAvail   = c => boxOn(c.box);
+const evAvail    = e => !e.year || boxOn(YEAR_BOX[e.year]||"");
+function availTracks(){ return DATA.tracks.filter(trackAvail); }
+function availCars(){ return DATA.cars.filter(carAvail); }
+
+/* ---------- Anzeigenamen (Spieler an Autofarbe) ---------- */
+function carObj(name){ return DATA.cars.find(x=>x.name===name); }
+function dispName(name){ const c=carObj(name); return (c&&c.player&&c.player.trim())?c.player.trim():name; }
+function subName(name){ const c=carObj(name); return (c&&c.player&&c.player.trim())?name:""; }
+function nameHtml(name){
+  const s=subName(name);
+  return `<b>${esc(dispName(name))}</b>${s?` <span style="color:var(--mut2);font-size:11.5px;font-weight:600">${esc(s)}</span>`:""}`;
+}
 
 /* ---------- Tabs ---------- */
 document.querySelectorAll(".tab").forEach(t=>{
@@ -487,7 +531,7 @@ function fillTrackSelect(){
   const opt0 = document.createElement("option");
   opt0.value = "__any__"; opt0.textContent = "Zufällige Strecke";
   sel.appendChild(opt0);
-  DATA.tracks.forEach(t=>{
+  availTracks().forEach(t=>{
     const o=document.createElement("option");
     o.value=t.name; o.textContent=t.name+" ("+t.sectors+" Sekt.)";
     sel.appendChild(o);
@@ -521,13 +565,13 @@ function drawRace(){
   const trackSel = document.getElementById("raceTrack").value;
   let trackName = trackSel;
   if(trackSel==="__any__"){
-    const t = pick(DATA.tracks); trackName = t ? t.name : "—";
+    const t = pick(availTracks()); trackName = t ? t.name : "—";
     document.getElementById("raceTrack").value = t ? t.name : "__any__";
     syncSectors();
   }
   let n = parseInt(document.getElementById("raceSectors").value,10);
   if(!n || n<1) n=1; if(n>24) n=24;
-  const cars = DATA.cars.filter(c=>c.active).map(c=>c.name);
+  const cars = availCars().filter(c=>c.active).map(c=>c.name);
   RACE = {
     trackName, n,
     weather: pick(DATA.weather),
@@ -548,7 +592,7 @@ function renderRaceResult(){
     grid.forEach((c,i)=>{
       html += `<div class="gridrow ${i===0?"first":""}" style="animation-delay:${0.05+i*0.04}s">
         <div class="pos">${i+1}</div>
-        <span class="dot" style="background:${esc(carColor(c))}"></span><b>${esc(c)}</b>
+        <span class="dot" style="background:${esc(carColor(c))}"></span>${nameHtml(c)}
         ${i===0?'<span style="color:var(--mut);font-size:12px">Pole Position</span>':''}</div>`;
     });
     html += `</div><button class="act sec" id="btnRaceRegrid">🎲 Startaufstellung neu losen</button></div>`;
@@ -586,17 +630,37 @@ function officialSeasons(){
 function renderCarChips(container){
   if(!container) return;
   container.innerHTML = "";
-  DATA.cars.forEach(c=>{
+  availCars().forEach(c=>{
     const chip = document.createElement("div");
     chip.className = "chip"+(c.active?" on":"");
-    chip.innerHTML = `<span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}`;
+    const pl = (c.player&&c.player.trim()) ? ` · ${esc(c.player.trim())}` : "";
+    chip.innerHTML = `<span class="dot" style="background:${esc(c.color)}"></span>${esc(c.name)}${pl}`;
     chip.addEventListener("click",()=>{ c.active=!c.active; save(); renderAllChips(); if(document.getElementById("panel-table").classList.contains("active")) renderTable(); });
+    container.appendChild(chip);
+  });
+}
+function renderBoxChips(container){
+  if(!container) return;
+  container.innerHTML = "";
+  BOXES.forEach(b=>{
+    const on = boxOn(b.id);
+    const chip = document.createElement("div");
+    chip.className = "chip"+(on?" on":"");
+    chip.textContent = b.name;
+    chip.addEventListener("click",()=>{
+      const selCount = BOXES.filter(x=>boxOn(x.id)).length;
+      if(on && selCount<=1){ alert("Mindestens eine Box muss ausgewählt bleiben."); return; }
+      DATA.boxesSel[b.id] = !on; save();
+      renderAllChips(); renderSeasonControls(); fillTrackSelect();
+    });
     container.appendChild(chip);
   });
 }
 function renderAllChips(){
   renderCarChips(document.getElementById("carChips"));
   renderCarChips(document.getElementById("raceCarChips"));
+  renderBoxChips(document.getElementById("seasonBoxChips"));
+  renderBoxChips(document.getElementById("raceBoxChips"));
 }
 function renderSeasonControls(){
   renderAllChips();
@@ -608,13 +672,23 @@ function renderSeasonControls(){
   Object.keys(byYear).sort().forEach(y=>{
     const o = document.createElement("option");
     o.value = "y"+y;
-    o.textContent = `Offizielle Saison ${y} (${byYear[y].length} Rennen · ${SEASON_LABELS[y]||"?"})`;
+    // benötigte Boxen: Events des Jahres + Boxen der referenzierten Strecken
+    const need = new Set();
+    if(YEAR_BOX[y]) need.add(YEAR_BOX[y]);
+    byYear[y].forEach(e=>{ const t=trackByName(e.track); if(t&&t.box) need.add(t.box); });
+    const missing = [...need].filter(b=>!boxOn(b)).map(b=>(BOXES.find(x=>x.id===b)||{}).name);
+    o.textContent = `Offizielle Saison ${y} (${byYear[y].length} Rennen · ${SEASON_LABELS[y]||"?"})` + (missing.length?` – fehlt: ${missing.join(", ")}`:"");
+    if(missing.length) o.disabled = true;
     sel.appendChild(o);
   });
   const oR = document.createElement("option");
-  oR.value="random"; oR.textContent="Zufalls-Saison 🎲";
+  oR.value="random"; oR.textContent="Zufalls-Saison 🎲 (aus vorhandenem Material)";
   sel.appendChild(oR);
-  if(cur && [...sel.options].some(o=>o.value===cur)) sel.value = cur;
+  if(cur && [...sel.options].some(o=>o.value===cur && !o.disabled)) sel.value = cur;
+  if(sel.selectedOptions[0] && sel.selectedOptions[0].disabled){
+    const first=[...sel.options].find(o=>!o.disabled);
+    if(first) sel.value=first.value;
+  }
   toggleRandomOpts();
 }
 function toggleRandomOpts(){
@@ -624,7 +698,7 @@ function toggleRandomOpts(){
 document.getElementById("seasonMode").addEventListener("change",toggleRandomOpts);
 
 function startSeason(){
-  const cars = DATA.cars.filter(c=>c.active).map(c=>c.name);
+  const cars = availCars().filter(c=>c.active).map(c=>c.name);
   if(cars.length<1){ alert("Bitte mindestens 1 Auto auswählen."); return; }
   const mode = document.getElementById("seasonMode").value;
   const withWeather = document.getElementById("seasonWeather").value==="yes";
@@ -650,14 +724,17 @@ function startSeason(){
     let n = parseInt(document.getElementById("seasonRaces").value,10);
     if(!n||n<1) n=1; if(n>24) n=24;
     const tmode = document.getElementById("seasonTrackMode").value;
-    let evPool = shuffle(DATA.events);
-    let tp = shuffle(DATA.tracks);
+    const evAll = DATA.events.filter(evAvail);
+    const tAll = availTracks();
+    if(!evAll.length || !tAll.length){ alert("Das ausgewählte Material enthält keine Events/Strecken."); return; }
+    let evPool = shuffle(evAll);
+    let tp = shuffle(tAll);
     for(let i=0;i<n;i++){
-      if(evPool.length===0) evPool = shuffle(DATA.events);
+      if(evPool.length===0) evPool = shuffle(evAll);
       const ev = evPool.pop();
       let t;
-      if(tmode==="unique"){ if(tp.length===0) tp = shuffle(DATA.tracks); t = tp.pop(); }
-      else t = pick(DATA.tracks);
+      if(tmode==="unique"){ if(tp.length===0) tp = shuffle(tAll); t = tp.pop(); }
+      else t = pick(tAll);
       races.push({
         track: t?t.name:"—", code: t?t.code:"?",
         event: {name:ev.name, effect:ev.effect},
@@ -680,6 +757,11 @@ function startSeason(){
   renderTable();
 }
 document.getElementById("btnSeason").addEventListener("click",startSeason);
+document.getElementById("btnEditNames").addEventListener("click",()=>{
+  document.querySelector('.tab[data-tab="edit"]').click();
+  const d=document.getElementById("edCars").closest("details");
+  if(d){ d.open=true; d.scrollIntoView({behavior:"smooth"}); }
+});
 
 function renderSeasonResult(){
   const el = document.getElementById("seasonResult");
@@ -688,7 +770,7 @@ function renderSeasonResult(){
   SEASON.startGrid.forEach((c,i)=>{
     html += `<div class="gridrow ${i===0?"first":""}" style="animation-delay:${i*0.05}s">
       <div class="pos">${i+1}</div>
-      <span class="dot" style="background:${esc(carColor(c))}"></span><b>${esc(c)}</b>
+      <span class="dot" style="background:${esc(carColor(c))}"></span>${nameHtml(c)}
       ${i===0?'<span style="color:var(--mut);font-size:12px">Pole Position</span>':''}
     </div>`;
   });
@@ -824,14 +906,14 @@ function renderTable(){
     for(let i=1;i<=N;i++) opts += `<option value="${i}" ${p==i?"selected":""}>P${i}</option>`;
     inp += `<div class="irow ${dup?"dup":""}">
       <span class="dot" style="background:${esc(carColor(c))}"></span>
-      <span class="nm">${esc(c)}</span>
+      <span class="nm">${nameHtml(c)}</span>
       <select data-car="${esc(c)}" class="plc">${opts}</select>
     </div>`;
   });
   const dupAny = Object.values(used).some(v=>v>1);
   inp += `</div><div class="dupwarn">${dupAny?"⚠️ Achtung: doppelte Platzierung!":""}</div>
     <div class="hint">Punkte: ${ (DATA.points||[]).map((p,i)=>"P"+(i+1)+"="+p).join(", ") }, danach 0.</div>`;
-  const activeNow = DATA.cars.filter(c=>c.active).map(c=>c.name);
+  const activeNow = availCars().filter(c=>c.active).map(c=>c.name);
   const carsChanged = activeNow.length!==SEASON.cars.length || activeNow.some(c=>!SEASON.cars.includes(c));
   if(carsChanged){
     inp += `<button class="act sec" id="btnSyncCars">🔄 Auto-Auswahl in laufende Saison übernehmen (${activeNow.length} Autos)</button>
@@ -847,7 +929,7 @@ function renderTable(){
   });
   tbl += `<th>Σ</th></tr></thead><tbody>`;
   order.forEach((c,rank)=>{
-    tbl += `<tr class="${rank===0?"lead":""}"><td class="rank">${rank+1}.</td><td class="car"><span class="dot" style="background:${esc(carColor(c))}"></span>${esc(c)}</td>`;
+    tbl += `<tr class="${rank===0?"lead":""}"><td class="rank">${rank+1}.</td><td class="car" title="${esc(c)}"><span class="dot" style="background:${esc(carColor(c))}"></span>${esc(dispName(c))}</td>`;
     SEASON.races.forEach((r,i)=>{
       const pl = SEASON.results[i][c];
       if(pl){
@@ -872,7 +954,7 @@ function renderTable(){
     grid = `<div class="sectionTitle">${label}</div><div class="gridlist">`;
     order.forEach((c,i)=>{
       grid += `<div class="gridrow ${i===0?"first":""}"><div class="pos">${i+1}</div>
-        <span class="dot" style="background:${esc(carColor(c))}"></span><b>${esc(c)}</b>
+        <span class="dot" style="background:${esc(carColor(c))}"></span>${nameHtml(c)}
         ${nextIdx===-1&&i===0?'<span style="font-size:16px">🏆</span>':''}</div>`;
     });
     grid += `</div>`;
@@ -893,7 +975,7 @@ function renderTable(){
   });
   const sync = document.getElementById("btnSyncCars");
   if(sync) sync.addEventListener("click",()=>{
-    const newCars = DATA.cars.filter(c=>c.active).map(c=>c.name);
+    const newCars = availCars().filter(c=>c.active).map(c=>c.name);
     if(newCars.length<1){ alert("Bitte mindestens 1 Auto auswählen."); return; }
     SEASON.cars = newCars;
     SEASON.results.forEach(r=>{ Object.keys(r).forEach(k=>{ if(!newCars.includes(k)) delete r[k]; }); });
@@ -979,6 +1061,10 @@ function renderEditors(){
     row.appendChild(cd);
     const s=inp(it.sectors||6,"Sekt.","cs",v=>{it.sectors=parseInt(v,10)||1;fillTrackSelect();},"number"); s.min=1;
     row.appendChild(s);
+    const tbx=document.createElement("select"); tbx.className="cs"; tbx.style.flex="0 0 116px";
+    tbx.innerHTML = `<option value="">Immer dabei</option>`+BOXES.map(b=>`<option value="${b.id}" ${it.box===b.id?"selected":""}>${b.name}</option>`).join("");
+    tbx.addEventListener("change",()=>{it.box=tbx.value;autoSave();fillTrackSelect();renderSeasonControls();});
+    row.appendChild(tbx);
     row.appendChild(delBtn(()=>{DATA.tracks.splice(i,1);renderEditors();fillTrackSelect();}));
     t.appendChild(row);
   });
@@ -994,11 +1080,19 @@ function renderEditors(){
     const col=document.createElement("input"); col.type="color"; col.value=/^#[0-9a-fA-F]{6}$/.test(it.color)?it.color:"#888888";
     col.addEventListener("input",()=>{it.color=col.value;autoSave();renderSeasonControls();});
     row.appendChild(col);
-    row.appendChild(inp(it.name,"Farbe/Name","c1",v=>{it.name=v;renderSeasonControls();}));
+    row.appendChild(inp(it.name,"Farbe","c1",v=>{it.name=v;renderSeasonControls();}));
+    row.appendChild(inp(it.player||"","Spielername","c1",v=>{it.player=v;renderSeasonControls();}));
+    const bx=document.createElement("select"); bx.className="cs"; bx.style.flex="0 0 116px";
+    bx.innerHTML = `<option value="">Immer dabei</option>`+BOXES.map(b=>`<option value="${b.id}" ${it.box===b.id?"selected":""}>${b.name}</option>`).join("");
+    bx.addEventListener("change",()=>{it.box=bx.value;autoSave();renderSeasonControls();});
+    row.appendChild(bx);
     row.appendChild(delBtn(()=>{DATA.cars.splice(i,1);renderEditors();renderSeasonControls();}));
     ca.appendChild(row);
   });
-  ca.appendChild(addBtn("+ Auto hinzufügen",()=>{DATA.cars.push({name:"Neu",color:"#888888",active:true});renderEditors();renderSeasonControls();}));
+  const cainfo=document.createElement("div"); cainfo.className="hint";
+  cainfo.textContent="Spielername wird überall zusammen mit der Autofarbe angezeigt. Die Box bestimmt, wann das Auto zur Auswahl steht.";
+  ca.appendChild(cainfo);
+  ca.appendChild(addBtn("+ Auto hinzufügen",()=>{DATA.cars.push({name:"Neu",color:"#888888",active:true,box:"",player:""});renderEditors();renderSeasonControls();}));
 
   // Punkte
   const pI = document.getElementById("edPoints");
