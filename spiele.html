@@ -113,6 +113,10 @@
         <select id="so"><option value="name">Name</option><option value="tmax">Dauer</option><option value="pmax">Spielerzahl</option><option value="cx">Komplexität</option></select></div>
     </div>
     <div style="margin-top:12px">
+      <label class="fld">Wem gehört's?</label>
+      <div class="pills" id="ow"></div>
+    </div>
+    <div style="margin-top:12px">
       <label class="fld">Art</label>
       <div class="pills" id="ty"></div>
     </div>
@@ -130,8 +134,8 @@
   <div class="list" id="list"></div>
 
   <div class="foot">
-    Daten: eigene Sammlung, Eckdaten laut BoardGameGeek · Favoriten werden lokal auf deinem Gerät gespeichert<br>
-    Neues Spiel? In <code>spiele-daten.js</code> eine Zeile ergänzen.
+    Daten: unsere Sammlungen, Eckdaten laut BoardGameGeek · Favoriten werden lokal auf deinem Gerät gespeichert<br>
+    Neues Spiel? In <code>spiele-daten.js</code> eine Zeile ergänzen und den Besitzer eintragen.
   </div>
 </div>
 
@@ -142,7 +146,9 @@ const $=s=>document.querySelector(s);
 const LS='spiele_favs_v1';
 let favs=new Set();try{favs=new Set(JSON.parse(localStorage.getItem(LS)||'[]'))}catch(e){}
 const saveFavs=()=>{try{localStorage.setItem(LS,JSON.stringify([...favs]))}catch(e){}};
-const st={q:'',pl:0,du:'',cx:'',so:'name',ty:new Set(),fav:false};
+const st={q:'',pl:0,du:'',cx:'',so:'name',ty:new Set(),ow:'',fav:false};
+const owners=g=>String(g.besitzer||'').split(',').map(x=>x.trim()).filter(Boolean);
+const fk=g=>g.name+'|'+(g.besitzer||'');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
 const rng=(a,b,u='')=>a==null?'–':(a===b||b==null?a+u:a+'–'+b+u);
 const tm=(a,b)=>a==null?'–':rng(a,b,' Min');
@@ -151,17 +157,19 @@ const CXN=['leicht','mittel','anspruchsvoll'];
 $('#sub').textContent=`${G.length} Spiele im Regal`;
 $('#pl').innerHTML=['egal',1,2,3,4,5,6,'7+'].map((v,i)=>`<button class="pill${i===0?' on':''}" type="button" data-v="${i===0?0:i===7?7:v}">${v}</button>`).join('');
 const typen=[...new Set(G.map(g=>g.typ))].sort((a,b)=>a.localeCompare(b,'de'));
+function renderOw(){const all=[...new Set(G.flatMap(owners))].sort((a,b)=>a.localeCompare(b,'de'));$('#ow').innerHTML=[`<button class="pill${st.ow?'':' on'}" type="button" data-o="">Alle</button>`].concat(all.map(o=>`<button class="pill${st.ow===o?' on':''}" type="button" data-o="${esc(o)}">${esc(o)}<small>${G.filter(g=>owners(g).includes(o)).length}</small></button>`)).join('')}
 function renderTy(){$('#ty').innerHTML=typen.map(t=>`<button class="pill${st.ty.has(t)?' on':''}" type="button" data-t="${esc(t)}">${esc(t)}<small>${G.filter(g=>g.typ===t).length}</small></button>`).join('')}
 
 function filtered(){
   const q=st.q.trim().toLowerCase();
   return G.filter(g=>{
-    if(q&&!(g.name+' '+g.exp+' '+g.mech+' '+g.desc+' '+g.typ).toLowerCase().includes(q))return false;
+    if(q&&!(g.name+' '+g.exp+' '+g.mech+' '+g.desc+' '+g.typ+' '+(g.besitzer||'')).toLowerCase().includes(q))return false;
+    if(st.ow&&!owners(g).includes(st.ow))return false;
     if(st.pl){if(g.pmin==null)return false;if(st.pl===7?g.pmax<7:(st.pl<g.pmin||st.pl>g.pmax))return false}
     if(st.du&&(g.tmax==null||g.tmax>+st.du))return false;
     if(st.cx&&g.cx!==+st.cx)return false;
     if(st.ty.size&&!st.ty.has(g.typ))return false;
-    if(st.fav&&!favs.has(g.name))return false;
+    if(st.fav&&!favs.has(fk(g)))return false;
     return true;
   }).sort((a,b)=>{
     const k=st.so;if(k==='name')return a.name.localeCompare(b.name,'de');
@@ -173,7 +181,7 @@ function card(g,pick){
   return `<div class="game${pick?' pick':''}">
     <div class="ghead">
       <div class="gname"><b>${esc(g.name)}</b>${g.exp?`<div class="exp">+ ${esc(g.exp)}</div>`:''}</div>
-      <button class="star${favs.has(g.name)?' on':''}" type="button" data-f="${g.i}" aria-label="Favorit">${favs.has(g.name)?'★':'☆'}</button>
+      <button class="star${favs.has(fk(g))?' on':''}" type="button" data-f="${g.i}" aria-label="Favorit">${favs.has(fk(g))?'★':'☆'}</button>
     </div>
     <div class="meta">
       <span class="typ">${esc(g.typ)}</span>
@@ -181,6 +189,7 @@ function card(g,pick){
       <span>⏱ ${tm(g.tmin,g.tmax)}</span>
       <span>🎂 ${g.age==null?'–':g.age+'+'}</span>
       <span>${dots}</span>
+      ${g.besitzer?`<span>🏠 ${esc(g.besitzer)}</span>`:''}
     </div>
     ${g.desc?`<div class="desc">${esc(g.desc)}</div>`:''}
     <div class="foot2"><span>${esc(g.mech||'')}</span>${g.bgg?`<a href="https://boardgamegeek.com/boardgame/${g.bgg}" target="_blank" rel="noopener">BGG ›</a>`:''}</div>
@@ -196,16 +205,17 @@ $('#q').addEventListener('input',e=>{st.q=e.target.value;render()});
 ['du','cx','so'].forEach(id=>$('#'+id).addEventListener('change',e=>{st[id]=e.target.value;render()}));
 $('#pl').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;st.pl=+b.dataset.v;document.querySelectorAll('#pl .pill').forEach(x=>x.classList.toggle('on',x===b));render()});
 $('#ty').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;const t=b.dataset.t;st.ty.has(t)?st.ty.delete(t):st.ty.add(t);renderTy();render()});
+$('#ow').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;st.ow=b.dataset.o;renderOw();render()});
 $('#fav').addEventListener('click',()=>{st.fav=!st.fav;render()});
-$('#reset').addEventListener('click',()=>{Object.assign(st,{q:'',pl:0,du:'',cx:'',ty:new Set(),fav:false});$('#q').value='';$('#du').value='';$('#cx').value='';document.querySelectorAll('#pl .pill').forEach((x,i)=>x.classList.toggle('on',i===0));$('#pick').innerHTML='';renderTy();render()});
-document.addEventListener('click',e=>{const b=e.target.closest('.star');if(!b)return;const g=G[+b.dataset.f];favs.has(g.name)?favs.delete(g.name):favs.add(g.name);saveFavs();render();if($('#pick').dataset.i==g.i)$('#pick').innerHTML=card(g,true)});
+$('#reset').addEventListener('click',()=>{Object.assign(st,{q:'',pl:0,du:'',cx:'',ty:new Set(),ow:'',fav:false});renderOw();$('#q').value='';$('#du').value='';$('#cx').value='';document.querySelectorAll('#pl .pill').forEach((x,i)=>x.classList.toggle('on',i===0));$('#pick').innerHTML='';renderTy();render()});
+document.addEventListener('click',e=>{const b=e.target.closest('.star');if(!b)return;const g=G[+b.dataset.f];favs.has(fk(g))?favs.delete(fk(g)):favs.add(fk(g));saveFavs();render();if($('#pick').dataset.i==g.i)$('#pick').innerHTML=card(g,true)});
 $('#rnd').addEventListener('click',()=>{
   const rows=filtered();
   if(!rows.length){$('#pick').innerHTML=`<div class="empty">Mit diesen Filtern gibt es nichts zu losen.</div>`;return}
   const g=rows[Math.floor(Math.random()*rows.length)];
   $('#pick').dataset.i=g.i;$('#pick').innerHTML=card(g,true);
 });
-renderTy();render();
+renderOw();renderTy();render();
 </script>
 </body>
 </html>
