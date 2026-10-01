@@ -40,7 +40,7 @@
     padding:12px;border-radius:10px;font-size:16px;outline:none;font-family:inherit;
   }
   input:focus,select:focus{border-color:var(--red2)}
-  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
+  .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-top:12px}
   .pills{display:flex;flex-wrap:wrap;gap:6px}
   .pill{
     padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);
@@ -105,6 +105,11 @@
     #print .e{color:#555;font-size:9.5px}
     #print .num{white-space:nowrap}
   }
+  .totop{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom,0px));width:48px;height:48px;border-radius:50%;
+    border:1px solid var(--line);background:linear-gradient(180deg,var(--red2),var(--red));color:#fff;font-size:22px;font-weight:800;
+    box-shadow:0 6px 20px rgba(0,0,0,.5);cursor:pointer;opacity:0;pointer-events:none;transform:translateY(10px);transition:.2s;z-index:20}
+  .totop.show{opacity:1;pointer-events:auto;transform:none}
+  @media print{.totop{display:none!important}}
   .foot{text-align:center;color:var(--mut2);font-size:11.5px;margin-top:30px;line-height:1.6}
 </style>
 </head>
@@ -125,12 +130,14 @@
       <div class="pills" id="pl"></div>
     </div>
     <div class="grid">
-      <div><label class="fld" for="du">Dauer bis</label>
-        <select id="du"><option value="">egal</option><option value="20">20 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60">1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option></select></div>
-      <div><label class="fld" for="cx">Komplexität</label>
+      <div><label class="fld" for="dmin">Dauer von</label>
+        <select id="dmin"><option value="">egal</option><option value="15">15 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60">1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option><option value="180">3 Std</option></select></div>
+      <div><label class="fld" for="dmax">Dauer bis</label>
+        <select id="dmax"><option value="">egal</option><option value="15">15 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60">1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option><option value="180">3 Std</option></select></div>
+      <div style="grid-column:1/-1"><label class="fld" for="cx">Komplexität</label>
         <select id="cx"><option value="">egal</option><option value="1">● leicht</option><option value="2">●● mittel</option><option value="3">●●● anspruchsvoll</option></select></div>
-      <div><label class="fld" for="so">Sortieren</label>
-        <select id="so"><option value="name">Name</option><option value="tmax">Dauer</option><option value="pmax">Spielerzahl</option><option value="cx">Komplexität</option></select></div>
+      <div style="grid-column:1/-1"><label class="fld" for="so">Sortieren</label>
+        <div style="display:flex;gap:6px"><select id="so" style="min-width:0;padding:12px 8px"><option value="name">Name</option><option value="tmax">Dauer</option><option value="pmax">Spielerzahl</option><option value="cx">Komplexität</option></select><button class="mini" id="dir" type="button" title="Reihenfolge umdrehen" style="min-width:50px;padding:9px 8px">A–Z</button></div></div>
     </div>
     <div style="margin-top:12px">
       <label class="fld">Wem gehört's?</label>
@@ -170,6 +177,7 @@
   </div>
 </div>
 
+<button class="totop" id="totop" type="button" aria-label="Nach oben zu Suche und Filtern">↑</button>
 <div id="print"></div>
 <script src="spiele-daten.js"></script>
 <script>
@@ -178,7 +186,7 @@ const $=s=>document.querySelector(s);
 const LS='spiele_favs_v1';
 let favs=new Set();try{favs=new Set(JSON.parse(localStorage.getItem(LS)||'[]'))}catch(e){}
 const saveFavs=()=>{try{localStorage.setItem(LS,JSON.stringify([...favs]))}catch(e){}};
-const st={q:'',pl:0,du:'',cx:'',so:'name',ty:new Set(),ow:'',fav:false};
+const st={q:'',pl:0,dmin:'',dmax:'',cx:'',so:'name',dir:1,ty:new Set(),ow:'',fav:false};
 const owners=g=>String(g.besitzer||'').split(',').map(x=>x.trim()).filter(Boolean);
 const fk=g=>g.name+'|'+(g.besitzer||'');
 const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
@@ -198,14 +206,16 @@ function filtered(){
     if(q&&!(g.name+' '+g.exp+' '+g.mech+' '+g.desc+' '+g.typ+' '+(g.besitzer||'')).toLowerCase().includes(q))return false;
     if(st.ow&&!owners(g).includes(st.ow))return false;
     if(st.pl){if(g.pmin==null)return false;if(st.pl===7?g.pmax<7:(st.pl<g.pmin||st.pl>g.pmax))return false}
-    if(st.du&&(g.tmax==null||g.tmax>+st.du))return false;
+    if(st.dmin||st.dmax){if(g.tmin==null)return false;
+      if(st.dmin&&g.tmax<+st.dmin)return false;
+      if(st.dmax&&g.tmin>+st.dmax)return false;}
     if(st.cx&&g.cx!==+st.cx)return false;
     if(st.ty.size&&!st.ty.has(g.typ))return false;
     if(st.fav&&!favs.has(fk(g)))return false;
     return true;
   }).sort((a,b)=>{
-    const k=st.so;if(k==='name')return a.name.localeCompare(b.name,'de');
-    const x=a[k],y=b[k];if(x==null)return 1;if(y==null)return -1;return x-y||a.name.localeCompare(b.name,'de');
+    const k=st.so;if(k==='name')return a.name.localeCompare(b.name,'de')*st.dir;
+    const x=a[k],y=b[k];if(x==null&&y==null)return 0;if(x==null)return 1;if(y==null)return -1;return (x-y)*st.dir||a.name.localeCompare(b.name,'de');
   });
 }
 function card(g,pick){
@@ -232,16 +242,24 @@ function render(){
   $('#count').innerHTML=`<b>${rows.length}</b> von ${G.length} Spielen`;
   $('#list').innerHTML=rows.length?rows.map(g=>card(g)).join(''):`<div class="empty">Kein Spiel passt zu diesen Filtern.<br>Lockere Spielerzahl oder Dauer.</div>`;
   $('#fav').classList.toggle('on',st.fav);
+  $('#dir').textContent=st.so==='name'?(st.dir>0?'A–Z':'Z–A'):(st.dir>0?'↑':'↓');
+  $('#dir').title=st.dir>0?'aufsteigend – tippen zum Umdrehen':'absteigend – tippen zum Umdrehen';
 }
 $('#q').addEventListener('input',e=>{st.q=e.target.value;render()});
-['du','cx','so'].forEach(id=>$('#'+id).addEventListener('change',e=>{st[id]=e.target.value;render()}));
+['dmin','dmax','cx'].forEach(id=>$('#'+id).addEventListener('change',e=>{st[id]=e.target.value;
+  if(st.dmin&&st.dmax&&+st.dmin>+st.dmax){const o=id==='dmin'?'dmax':'dmin';st[o]=st[id];$('#'+o).value=st[id]}render()}));
+$('#so').addEventListener('change',e=>{st.so=e.target.value;st.dir=1;render()});
+$('#dir').addEventListener('click',()=>{st.dir=-st.dir;render()});
+const tt=$('#totop');
+addEventListener('scroll',()=>tt.classList.toggle('show',scrollY>500),{passive:true});
+tt.addEventListener('click',()=>{const m=matchMedia('(prefers-reduced-motion: reduce)').matches;scrollTo({top:0,behavior:m?'auto':'smooth'})});
 $('#pl').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;st.pl=+b.dataset.v;document.querySelectorAll('#pl .pill').forEach(x=>x.classList.toggle('on',x===b));render()});
 $('#ty').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;const t=b.dataset.t;st.ty.has(t)?st.ty.delete(t):st.ty.add(t);renderTy();render()});
 $('#ow').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;st.ow=b.dataset.o;renderOw();render()});
 $('#fav').addEventListener('click',()=>{st.fav=!st.fav;render()});
 function applyState(o){
-  Object.assign(st,{q:o.q||'',pl:+o.pl||0,du:o.du||'',cx:o.cx||'',so:o.so||'name',ty:new Set(o.ty||[]),ow:o.ow||'',fav:!!o.fav});
-  $('#q').value=st.q;$('#du').value=st.du;$('#cx').value=st.cx;$('#so').value=st.so;
+  Object.assign(st,{q:o.q||'',pl:+o.pl||0,dmin:o.dmin||'',dmax:o.dmax||o.du||'',cx:o.cx||'',so:o.so||'name',dir:o.dir===-1?-1:1,ty:new Set(o.ty||[]),ow:o.ow||'',fav:!!o.fav});
+  $('#q').value=st.q;$('#dmin').value=st.dmin;$('#dmax').value=st.dmax;$('#cx').value=st.cx;$('#so').value=st.so;
   document.querySelectorAll('#pl .pill').forEach(x=>x.classList.toggle('on',+x.dataset.v===st.pl));
   $('#pick').innerHTML='';renderOw();renderTy();render();
 }
@@ -251,7 +269,7 @@ $('#reset').addEventListener('click',()=>{applyState({});$('#sv').value=''});
 const LSV='spiele_auswahlen_v1';
 let saved={};try{saved=JSON.parse(localStorage.getItem(LSV)||'{}')}catch(e){}
 const persist=()=>{try{localStorage.setItem(LSV,JSON.stringify(saved))}catch(e){}};
-const snap=()=>({q:st.q,pl:st.pl,du:st.du,cx:st.cx,so:st.so,ty:[...st.ty],ow:st.ow,fav:st.fav});
+const snap=()=>({q:st.q,pl:st.pl,dmin:st.dmin,dmax:st.dmax,cx:st.cx,so:st.so,dir:st.dir,ty:[...st.ty],ow:st.ow,fav:st.fav});
 const hint=t=>{$('#svhint').textContent=t};
 function renderSaved(sel){const ks=Object.keys(saved).sort((a,b)=>a.localeCompare(b,'de'));
   $('#sv').innerHTML='<option value="">'+(ks.length?'– Auswahl laden –':'Noch keine gespeichert')+'</option>'+ks.map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
@@ -270,7 +288,8 @@ $('#svdel').addEventListener('click',()=>{const k=$('#sv').value;
 // PDF / Drucken
 function summary(){const p=[];
   if(st.pl)p.push(st.pl===7?'7+ Spieler':st.pl+' Spieler');
-  if(st.du)p.push('bis '+st.du+' Min');
+  const fm=v=>v>=60?(v/60+'').replace('.',',')+' Std':v+' Min';
+  if(st.dmin&&st.dmax)p.push('Dauer '+fm(+st.dmin)+' bis '+fm(+st.dmax));else if(st.dmin)p.push('mind. '+fm(+st.dmin));else if(st.dmax)p.push('bis '+fm(+st.dmax));
   if(st.cx)p.push(CXN[st.cx-1]);
   if(st.ow)p.push('Besitzer: '+st.ow);
   if(st.ty.size)p.push([...st.ty].join(', '));
