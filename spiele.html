@@ -85,6 +85,26 @@
   .foot2 a{color:var(--mut);text-decoration:none;white-space:nowrap}
   .foot2 a:hover{color:var(--red2)}
   .empty{text-align:center;color:var(--mut);padding:30px 10px}
+  .saved{display:grid;grid-template-columns:1fr auto;gap:8px;margin-top:8px}
+  .saved input[type=text]{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);padding:12px;border-radius:10px;font-size:16px;outline:none;font-family:inherit}
+  .saved input:focus{border-color:var(--red2)}
+  .hint{font-size:12.5px;color:var(--mut);margin-top:6px;min-height:1em}
+  #print{display:none}
+  @media print{
+    @page{size:A4;margin:14mm}
+    body{background:#fff!important;color:#000;padding:0}
+    .flag,header,.wrap{display:none!important}
+    #print{display:block;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;color:#000}
+    #print h2{font-size:20px;margin:0 0 2px}
+    #print .pmeta{font-size:11px;color:#444;margin-bottom:10px}
+    #print table{width:100%;border-collapse:collapse;font-size:10.5px}
+    #print th{text-align:left;border-bottom:1.5px solid #000;padding:4px 5px;font-size:9.5px;text-transform:uppercase;letter-spacing:.4px}
+    #print td{border-bottom:.5px solid #bbb;padding:4px 5px;vertical-align:top}
+    #print tr{break-inside:avoid}
+    #print td.n b{font-size:11.5px}
+    #print .e{color:#555;font-size:9.5px}
+    #print .num{white-space:nowrap}
+  }
   .foot{text-align:center;color:var(--mut2);font-size:11.5px;margin-top:30px;line-height:1.6}
 </style>
 </head>
@@ -120,6 +140,16 @@
       <label class="fld">Art</label>
       <div class="pills" id="ty"></div>
     </div>
+    <div style="margin-top:14px;border-top:1px solid var(--line);padding-top:12px">
+      <label class="fld" for="sv">Gespeicherte Auswahlen</label>
+      <div class="saved">
+        <select id="sv"><option value="">– Auswahl laden –</option></select>
+        <button class="mini" id="svdel" type="button" title="Gewählte Auswahl löschen">🗑</button>
+        <input type="text" id="svname" placeholder="Name, z. B. „Spieleabend zu viert“" maxlength="40" autocomplete="off">
+        <button class="mini" id="svsave" type="button">💾 Speichern</button>
+      </div>
+      <div class="hint" id="svhint"></div>
+    </div>
     <div class="row2">
       <div class="count" id="count"></div>
       <div style="display:flex;gap:8px">
@@ -130,15 +160,17 @@
   </div>
 
   <button class="act" id="rnd" type="button">🎲 Was spielen wir heute?</button>
+  <button class="act sec" id="pdf" type="button" style="background:var(--card2);border:1px solid var(--line);box-shadow:none;font-size:15px;padding:12px;margin-top:10px">📄 Auswahl als PDF / drucken</button>
   <div id="pick"></div>
   <div class="list" id="list"></div>
 
   <div class="foot">
-    Daten: unsere Sammlungen, Eckdaten laut BoardGameGeek · Favoriten werden lokal auf deinem Gerät gespeichert<br>
+    Daten: unsere Sammlungen, Eckdaten laut BoardGameGeek · Favoriten und gespeicherte Auswahlen bleiben lokal auf deinem Gerät<br>
     Neues Spiel? In <code>spiele-daten.js</code> eine Zeile ergänzen und den Besitzer eintragen.
   </div>
 </div>
 
+<div id="print"></div>
 <script src="spiele-daten.js"></script>
 <script>
 const G=(window.SPIELE||[]).map((g,i)=>({...g,i}));
@@ -207,7 +239,55 @@ $('#pl').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)re
 $('#ty').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;const t=b.dataset.t;st.ty.has(t)?st.ty.delete(t):st.ty.add(t);renderTy();render()});
 $('#ow').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;st.ow=b.dataset.o;renderOw();render()});
 $('#fav').addEventListener('click',()=>{st.fav=!st.fav;render()});
-$('#reset').addEventListener('click',()=>{Object.assign(st,{q:'',pl:0,du:'',cx:'',ty:new Set(),ow:'',fav:false});renderOw();$('#q').value='';$('#du').value='';$('#cx').value='';document.querySelectorAll('#pl .pill').forEach((x,i)=>x.classList.toggle('on',i===0));$('#pick').innerHTML='';renderTy();render()});
+function applyState(o){
+  Object.assign(st,{q:o.q||'',pl:+o.pl||0,du:o.du||'',cx:o.cx||'',so:o.so||'name',ty:new Set(o.ty||[]),ow:o.ow||'',fav:!!o.fav});
+  $('#q').value=st.q;$('#du').value=st.du;$('#cx').value=st.cx;$('#so').value=st.so;
+  document.querySelectorAll('#pl .pill').forEach(x=>x.classList.toggle('on',+x.dataset.v===st.pl));
+  $('#pick').innerHTML='';renderOw();renderTy();render();
+}
+$('#reset').addEventListener('click',()=>{applyState({});$('#sv').value=''});
+
+// Gespeicherte Auswahlen
+const LSV='spiele_auswahlen_v1';
+let saved={};try{saved=JSON.parse(localStorage.getItem(LSV)||'{}')}catch(e){}
+const persist=()=>{try{localStorage.setItem(LSV,JSON.stringify(saved))}catch(e){}};
+const snap=()=>({q:st.q,pl:st.pl,du:st.du,cx:st.cx,so:st.so,ty:[...st.ty],ow:st.ow,fav:st.fav});
+const hint=t=>{$('#svhint').textContent=t};
+function renderSaved(sel){const ks=Object.keys(saved).sort((a,b)=>a.localeCompare(b,'de'));
+  $('#sv').innerHTML='<option value="">'+(ks.length?'– Auswahl laden –':'Noch keine gespeichert')+'</option>'+ks.map(k=>`<option value="${esc(k)}">${esc(k)}</option>`).join('');
+  if(sel)$('#sv').value=sel;}
+$('#sv').addEventListener('change',e=>{const k=e.target.value;if(!k)return;applyState(saved[k]);$('#svname').value=k;hint(`„${k}“ geladen.`)});
+$('#svsave').addEventListener('click',()=>{const k=$('#svname').value.trim();
+  if(!k){hint('Gib der Auswahl zuerst einen Namen.');$('#svname').focus();return}
+  const neu=!saved[k];saved[k]=snap();persist();renderSaved(k);hint(neu?`„${k}“ gespeichert.`:`„${k}“ überschrieben.`)});
+$('#svname').addEventListener('keydown',e=>{if(e.key==='Enter')$('#svsave').click()});
+let delArm='';
+$('#svdel').addEventListener('click',()=>{const k=$('#sv').value;
+  if(!k){hint('Wähle zuerst eine gespeicherte Auswahl.');return}
+  if(delArm!==k){delArm=k;hint(`Nochmal auf 🗑 tippen, um „${k}“ zu löschen.`);return}
+  delete saved[k];persist();delArm='';renderSaved();$('#svname').value='';hint(`„${k}“ gelöscht.`)});
+
+// PDF / Drucken
+function summary(){const p=[];
+  if(st.pl)p.push(st.pl===7?'7+ Spieler':st.pl+' Spieler');
+  if(st.du)p.push('bis '+st.du+' Min');
+  if(st.cx)p.push(CXN[st.cx-1]);
+  if(st.ow)p.push('Besitzer: '+st.ow);
+  if(st.ty.size)p.push([...st.ty].join(', '));
+  if(st.fav)p.push('nur Favoriten');
+  if(st.q.trim())p.push('Suche „'+st.q.trim()+'“');
+  return p.length?p.join(' · '):'alle Spiele';}
+$('#pdf').addEventListener('click',()=>{
+  const rows=filtered();const name=$('#sv').value;
+  const d=new Date().toLocaleDateString('de-DE');
+  $('#print').innerHTML=`<h2>DIE Spielesammlung${name?' – '+esc(name):''}</h2>
+  <div class="pmeta">${esc(summary())} · ${rows.length} Spiele · Stand ${d}</div>
+  <table><thead><tr><th>Spiel</th><th>Art</th><th>Spieler</th><th>Dauer</th><th>Alter</th><th>Kompl.</th><th>Besitzer</th></tr></thead><tbody>
+  ${rows.map(g=>`<tr><td class="n"><b>${esc(g.name)}</b>${g.exp?`<div class="e">+ ${esc(g.exp)}</div>`:''}${g.desc?`<div class="e">${esc(g.desc)}</div>`:''}</td><td>${esc(g.typ)}</td><td class="num">${rng(g.pmin,g.pmax)}</td><td class="num">${tm(g.tmin,g.tmax)}</td><td class="num">${g.age==null?'–':g.age+'+'}</td><td>${g.cx?CXN[g.cx-1]:'–'}</td><td>${esc(g.besitzer||'')}</td></tr>`).join('')}
+  </tbody></table>`;
+  window.print();
+});
+renderSaved();
 document.addEventListener('click',e=>{const b=e.target.closest('.star');if(!b)return;const g=G[+b.dataset.f];favs.has(fk(g))?favs.delete(fk(g)):favs.add(fk(g));saveFavs();render();if($('#pick').dataset.i==g.i)$('#pick').innerHTML=card(g,true)});
 $('#rnd').addEventListener('click',()=>{
   const rows=filtered();
