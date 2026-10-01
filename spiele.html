@@ -1,0 +1,211 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f13">
+<title>DIE Spielesammlung</title>
+<style>
+  :root{
+    --bg:#0d0f13; --bg2:#151922; --card:#1c2230; --card2:#232b3d;
+    --line:#2c3547; --ink:#f2f5fa; --mut:#9aa7bd; --mut2:#6b7791;
+    --red:#e23b3b; --red2:#ff5a4d; --amber:#f5a623; --green:#3ecf8e;
+    --shadow:0 8px 30px rgba(0,0,0,.45); --r:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{
+    font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 500px at 50% -200px,rgba(226,59,59,.12),transparent 60%),var(--bg);
+    color:var(--ink);min-height:100vh;padding:0 0 70px;-webkit-font-smoothing:antialiased;
+  }
+  .wrap{max-width:820px;margin:0 auto;padding:0 16px}
+  header{text-align:center;padding:26px 16px 6px;position:relative}
+  .flag{
+    height:10px;width:100%;max-width:820px;margin:0 auto 18px;border-radius:4px;
+    background-image:
+      linear-gradient(45deg,#141821 25%,transparent 25%,transparent 75%,#141821 75%,#141821),
+      linear-gradient(45deg,#141821 25%,#e9edf5 25%,#e9edf5 75%,#141821 75%,#141821);
+    background-size:20px 20px;background-position:0 0,10px 10px;opacity:.55;
+  }
+  .back{position:absolute;left:16px;top:24px;color:var(--mut);text-decoration:none;font-size:14px}
+  h1{margin:0;font-size:26px;letter-spacing:3px;font-weight:800}
+  h1 .hl{color:var(--red2)}
+  .sub{color:var(--mut);font-size:13px;margin-top:4px;letter-spacing:.5px}
+
+  .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:14px;box-shadow:var(--shadow)}
+  label.fld{display:block;font-size:11.5px;color:var(--mut);margin:0 0 6px;letter-spacing:.6px;text-transform:uppercase;font-weight:700}
+  input[type=search],select{
+    width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);
+    padding:12px;border-radius:10px;font-size:16px;outline:none;font-family:inherit;
+  }
+  input:focus,select:focus{border-color:var(--red2)}
+  .grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(140px,1fr));gap:10px;margin-top:12px}
+  .pills{display:flex;flex-wrap:wrap;gap:6px}
+  .pill{
+    padding:7px 11px;border-radius:999px;border:1px solid var(--line);background:var(--bg2);
+    color:var(--mut);font-size:13px;font-weight:600;cursor:pointer;font-family:inherit;
+  }
+  .pill.on{background:linear-gradient(180deg,var(--red),#b52a2a);border-color:var(--red);color:#fff}
+  .pill small{opacity:.7;margin-left:3px;font-weight:500}
+  .row2{display:flex;gap:10px;align-items:center;justify-content:space-between;flex-wrap:wrap;margin-top:12px}
+  .count{color:var(--mut);font-size:13px}
+  .count b{color:var(--ink)}
+  .mini{padding:9px 12px;font-size:13px;border-radius:10px;border:1px solid var(--line);background:var(--card2);color:var(--ink);cursor:pointer;font-weight:600;font-family:inherit}
+  .mini.on{border-color:var(--amber);color:var(--amber)}
+
+  button.act{
+    width:100%;padding:16px;border:none;border-radius:14px;font-size:17px;font-weight:800;
+    letter-spacing:.5px;cursor:pointer;color:#fff;margin-top:14px;font-family:inherit;
+    background:linear-gradient(180deg,var(--red2),var(--red));box-shadow:0 6px 20px rgba(226,59,59,.4);
+  }
+  button.act:active{transform:scale(.98)}
+
+  .list{margin-top:6px}
+  .game{
+    background:linear-gradient(180deg,var(--card2),var(--card));border:1px solid var(--line);
+    border-radius:var(--r);padding:14px 16px;margin-top:12px;position:relative;
+  }
+  .game.pick{border-color:var(--red2);box-shadow:0 0 0 2px rgba(255,90,77,.35),var(--shadow);animation:pop .4s cubic-bezier(.2,.9,.3,1.2) both}
+  @keyframes pop{from{opacity:0;transform:translateY(10px) scale(.98)}to{opacity:1;transform:none}}
+  .ghead{display:flex;gap:10px;align-items:flex-start}
+  .gname{flex:1;min-width:0}
+  .gname b{font-size:17px;display:block;line-height:1.25}
+  .exp{color:var(--amber);font-size:12.5px;margin-top:3px}
+  .star{background:none;border:none;font-size:22px;line-height:1;cursor:pointer;color:var(--mut2);padding:0 2px}
+  .star.on{color:var(--amber)}
+  .meta{display:flex;flex-wrap:wrap;gap:6px 14px;margin-top:10px;font-size:13.5px;color:var(--ink)}
+  .meta span{white-space:nowrap}
+  .typ{display:inline-block;font-size:11.5px;font-weight:700;letter-spacing:.4px;text-transform:uppercase;padding:3px 8px;border-radius:6px;background:var(--bg2);border:1px solid var(--line);color:var(--mut)}
+  .dots{display:inline-flex;gap:3px;vertical-align:middle;margin-left:2px}
+  .dots i{width:8px;height:8px;border-radius:50%;background:var(--line)}
+  .dots i.on{background:var(--red2)}
+  .desc{color:var(--mut);font-size:14px;line-height:1.5;margin-top:8px}
+  .foot2{display:flex;justify-content:space-between;gap:10px;align-items:center;margin-top:8px;font-size:12.5px;color:var(--mut2)}
+  .foot2 a{color:var(--mut);text-decoration:none;white-space:nowrap}
+  .foot2 a:hover{color:var(--red2)}
+  .empty{text-align:center;color:var(--mut);padding:30px 10px}
+  .foot{text-align:center;color:var(--mut2);font-size:11.5px;margin-top:30px;line-height:1.6}
+</style>
+</head>
+<body>
+<div class="flag"></div>
+<header>
+  <a class="back" href="index.html">‹ Tools</a>
+  <h1>📚 <span class="hl">DIE</span> SPIELESAMMLUNG</h1>
+  <div class="sub" id="sub">Alle Spiele im Regal</div>
+</header>
+
+<div class="wrap">
+  <div class="box">
+    <label class="fld" for="q">Suche</label>
+    <input type="search" id="q" placeholder="Name, Mechanik, Erweiterung …" autocomplete="off">
+    <div style="margin-top:12px">
+      <label class="fld">Wie viele seid ihr?</label>
+      <div class="pills" id="pl"></div>
+    </div>
+    <div class="grid">
+      <div><label class="fld" for="du">Dauer bis</label>
+        <select id="du"><option value="">egal</option><option value="20">20 Min</option><option value="30">30 Min</option><option value="45">45 Min</option><option value="60">1 Std</option><option value="90">1,5 Std</option><option value="120">2 Std</option></select></div>
+      <div><label class="fld" for="cx">Komplexität</label>
+        <select id="cx"><option value="">egal</option><option value="1">● leicht</option><option value="2">●● mittel</option><option value="3">●●● anspruchsvoll</option></select></div>
+      <div><label class="fld" for="so">Sortieren</label>
+        <select id="so"><option value="name">Name</option><option value="tmax">Dauer</option><option value="pmax">Spielerzahl</option><option value="cx">Komplexität</option></select></div>
+    </div>
+    <div style="margin-top:12px">
+      <label class="fld">Art</label>
+      <div class="pills" id="ty"></div>
+    </div>
+    <div class="row2">
+      <div class="count" id="count"></div>
+      <div style="display:flex;gap:8px">
+        <button class="mini" id="fav" type="button">★ Favoriten</button>
+        <button class="mini" id="reset" type="button">Zurücksetzen</button>
+      </div>
+    </div>
+  </div>
+
+  <button class="act" id="rnd" type="button">🎲 Was spielen wir heute?</button>
+  <div id="pick"></div>
+  <div class="list" id="list"></div>
+
+  <div class="foot">
+    Daten: eigene Sammlung, Eckdaten laut BoardGameGeek · Favoriten werden lokal auf deinem Gerät gespeichert<br>
+    Neues Spiel? In <code>spiele-daten.js</code> eine Zeile ergänzen.
+  </div>
+</div>
+
+<script src="spiele-daten.js"></script>
+<script>
+const G=(window.SPIELE||[]).map((g,i)=>({...g,i}));
+const $=s=>document.querySelector(s);
+const LS='spiele_favs_v1';
+let favs=new Set();try{favs=new Set(JSON.parse(localStorage.getItem(LS)||'[]'))}catch(e){}
+const saveFavs=()=>{try{localStorage.setItem(LS,JSON.stringify([...favs]))}catch(e){}};
+const st={q:'',pl:0,du:'',cx:'',so:'name',ty:new Set(),fav:false};
+const esc=s=>String(s??'').replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]));
+const rng=(a,b,u='')=>a==null?'–':(a===b||b==null?a+u:a+'–'+b+u);
+const tm=(a,b)=>a==null?'–':rng(a,b,' Min');
+const CXN=['leicht','mittel','anspruchsvoll'];
+
+$('#sub').textContent=`${G.length} Spiele im Regal`;
+$('#pl').innerHTML=['egal',1,2,3,4,5,6,'7+'].map((v,i)=>`<button class="pill${i===0?' on':''}" type="button" data-v="${i===0?0:i===7?7:v}">${v}</button>`).join('');
+const typen=[...new Set(G.map(g=>g.typ))].sort((a,b)=>a.localeCompare(b,'de'));
+function renderTy(){$('#ty').innerHTML=typen.map(t=>`<button class="pill${st.ty.has(t)?' on':''}" type="button" data-t="${esc(t)}">${esc(t)}<small>${G.filter(g=>g.typ===t).length}</small></button>`).join('')}
+
+function filtered(){
+  const q=st.q.trim().toLowerCase();
+  return G.filter(g=>{
+    if(q&&!(g.name+' '+g.exp+' '+g.mech+' '+g.desc+' '+g.typ).toLowerCase().includes(q))return false;
+    if(st.pl){if(g.pmin==null)return false;if(st.pl===7?g.pmax<7:(st.pl<g.pmin||st.pl>g.pmax))return false}
+    if(st.du&&(g.tmax==null||g.tmax>+st.du))return false;
+    if(st.cx&&g.cx!==+st.cx)return false;
+    if(st.ty.size&&!st.ty.has(g.typ))return false;
+    if(st.fav&&!favs.has(g.name))return false;
+    return true;
+  }).sort((a,b)=>{
+    const k=st.so;if(k==='name')return a.name.localeCompare(b.name,'de');
+    const x=a[k],y=b[k];if(x==null)return 1;if(y==null)return -1;return x-y||a.name.localeCompare(b.name,'de');
+  });
+}
+function card(g,pick){
+  const dots=g.cx?`<span class="dots" title="${CXN[g.cx-1]}">${[1,2,3].map(n=>`<i class="${n<=g.cx?'on':''}"></i>`).join('')}</span>`:'–';
+  return `<div class="game${pick?' pick':''}">
+    <div class="ghead">
+      <div class="gname"><b>${esc(g.name)}</b>${g.exp?`<div class="exp">+ ${esc(g.exp)}</div>`:''}</div>
+      <button class="star${favs.has(g.name)?' on':''}" type="button" data-f="${g.i}" aria-label="Favorit">${favs.has(g.name)?'★':'☆'}</button>
+    </div>
+    <div class="meta">
+      <span class="typ">${esc(g.typ)}</span>
+      <span>👥 ${rng(g.pmin,g.pmax)}</span>
+      <span>⏱ ${tm(g.tmin,g.tmax)}</span>
+      <span>🎂 ${g.age==null?'–':g.age+'+'}</span>
+      <span>${dots}</span>
+    </div>
+    ${g.desc?`<div class="desc">${esc(g.desc)}</div>`:''}
+    <div class="foot2"><span>${esc(g.mech||'')}</span>${g.bgg?`<a href="https://boardgamegeek.com/boardgame/${g.bgg}" target="_blank" rel="noopener">BGG ›</a>`:''}</div>
+  </div>`;
+}
+function render(){
+  const rows=filtered();
+  $('#count').innerHTML=`<b>${rows.length}</b> von ${G.length} Spielen`;
+  $('#list').innerHTML=rows.length?rows.map(g=>card(g)).join(''):`<div class="empty">Kein Spiel passt zu diesen Filtern.<br>Lockere Spielerzahl oder Dauer.</div>`;
+  $('#fav').classList.toggle('on',st.fav);
+}
+$('#q').addEventListener('input',e=>{st.q=e.target.value;render()});
+['du','cx','so'].forEach(id=>$('#'+id).addEventListener('change',e=>{st[id]=e.target.value;render()}));
+$('#pl').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;st.pl=+b.dataset.v;document.querySelectorAll('#pl .pill').forEach(x=>x.classList.toggle('on',x===b));render()});
+$('#ty').addEventListener('click',e=>{const b=e.target.closest('.pill');if(!b)return;const t=b.dataset.t;st.ty.has(t)?st.ty.delete(t):st.ty.add(t);renderTy();render()});
+$('#fav').addEventListener('click',()=>{st.fav=!st.fav;render()});
+$('#reset').addEventListener('click',()=>{Object.assign(st,{q:'',pl:0,du:'',cx:'',ty:new Set(),fav:false});$('#q').value='';$('#du').value='';$('#cx').value='';document.querySelectorAll('#pl .pill').forEach((x,i)=>x.classList.toggle('on',i===0));$('#pick').innerHTML='';renderTy();render()});
+document.addEventListener('click',e=>{const b=e.target.closest('.star');if(!b)return;const g=G[+b.dataset.f];favs.has(g.name)?favs.delete(g.name):favs.add(g.name);saveFavs();render();if($('#pick').dataset.i==g.i)$('#pick').innerHTML=card(g,true)});
+$('#rnd').addEventListener('click',()=>{
+  const rows=filtered();
+  if(!rows.length){$('#pick').innerHTML=`<div class="empty">Mit diesen Filtern gibt es nichts zu losen.</div>`;return}
+  const g=rows[Math.floor(Math.random()*rows.length)];
+  $('#pick').dataset.i=g.i;$('#pick').innerHTML=card(g,true);
+});
+renderTy();render();
+</script>
+</body>
+</html>
