@@ -1,0 +1,785 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<meta name="theme-color" content="#0d0f13">
+<title>CATAN · Spielplan-Generator & Partie</title>
+<style>
+  :root{
+    --bg:#0d0f13; --bg2:#151922; --card:#1c2230; --card2:#232b3d;
+    --line:#2c3547; --ink:#f2f5fa; --mut:#9aa7bd; --mut2:#6b7791;
+    --acc:#e8a33a; --acc2:#f3b95a; --red:#e23b3b; --red2:#ff5a4d; --green:#3ecf8e; --blue:#4aa8ff; --purple:#9b7dff;
+    --shadow:0 8px 30px rgba(0,0,0,.45); --r:16px;
+  }
+  *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+  html,body{margin:0;padding:0}
+  body{font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,Helvetica,Arial,sans-serif;
+    background:radial-gradient(1200px 500px at 50% -200px,rgba(232,163,58,.13),transparent 60%),var(--bg);
+    color:var(--ink);min-height:100vh;padding:0 0 40px;-webkit-font-smoothing:antialiased}
+  .wrap{max-width:860px;margin:0 auto;padding:0 12px}
+  header{text-align:center;padding:20px 16px 6px}
+  h1{margin:0;font-size:23px;letter-spacing:3px;font-weight:800}
+  h1 .hl{color:var(--acc2)}
+  .sub{color:var(--mut);font-size:12.5px;margin-top:3px}
+  .tabs{display:flex;gap:6px;margin:14px 0 6px;flex-wrap:wrap}
+  .tab{flex:1;min-width:90px;padding:10px 6px;border-radius:12px;border:1px solid var(--line);background:var(--card);color:var(--mut);font-weight:700;font-size:13px;cursor:pointer;text-align:center;white-space:nowrap}
+  .tab.active{background:linear-gradient(180deg,var(--acc2),#c47f1c);color:#1a1200;border-color:var(--acc)}
+  .box{background:var(--card);border:1px solid var(--line);border-radius:var(--r);padding:14px;margin-top:12px;box-shadow:var(--shadow)}
+  .sectionTitle{font-size:11.5px;color:var(--mut);letter-spacing:1px;text-transform:uppercase;font-weight:800;margin:14px 0 8px}
+  .sectionTitle.first{margin-top:0}
+  label.fld{display:block;font-size:11.5px;color:var(--mut);margin:0 0 5px;letter-spacing:.4px;text-transform:uppercase}
+  select,input[type=text],input[type=number]{width:100%;background:var(--bg2);border:1px solid var(--line);color:var(--ink);padding:10px;border-radius:10px;font-size:15px;outline:none}
+  select:focus,input:focus{border-color:var(--acc)}
+  .row{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+  .grow{flex:1;min-width:130px}
+  .hint{font-size:12px;color:var(--mut2);margin-top:8px;line-height:1.5}
+  .warn{font-size:12.5px;color:var(--acc2);margin-top:8px;line-height:1.5}
+  button.act{width:100%;padding:13px;border:none;border-radius:14px;font-size:15.5px;font-weight:800;cursor:pointer;color:#1a1200;margin-top:12px;
+    background:linear-gradient(180deg,var(--acc2),#c47f1c);box-shadow:0 6px 20px rgba(232,163,58,.3);transition:transform .08s}
+  button.act:active{transform:scale(.98)}
+  button.act:disabled{opacity:.4;box-shadow:none;cursor:default}
+  button.act.sec{background:var(--card2);color:var(--ink);border:1px solid var(--line);box-shadow:none;font-size:14px;padding:11px}
+  button.act.good{background:linear-gradient(180deg,#4bd89b,#2b9e69);color:#06241a}
+  .mini{padding:8px 11px;font-size:12.5px;border-radius:9px;border:1px solid var(--line);background:var(--card2);color:var(--ink);cursor:pointer;font-weight:600}
+  .mini.on{border-color:var(--acc);color:var(--acc)}
+  .chips{display:flex;flex-wrap:wrap;gap:7px}
+  .chip{display:flex;align-items:center;gap:6px;padding:8px 12px;border-radius:20px;cursor:pointer;border:1.5px solid var(--line);background:var(--bg2);font-size:13.5px;font-weight:600;color:var(--mut);user-select:none}
+  .chip.on{color:var(--ink);border-color:var(--acc);background:rgba(232,163,58,.12)}
+  .chip.on::after{content:"✓";color:var(--acc);font-weight:800;font-size:12px}
+  .radio .chip.on::after{content:"●";font-size:10px}
+  .seg{display:flex;border:1px solid var(--line);border-radius:11px;overflow:hidden;background:var(--bg2)}
+  .seg button{flex:1;padding:9px 6px;border:none;background:transparent;color:var(--mut);font-weight:700;font-size:13px;cursor:pointer}
+  .seg button.on{background:var(--acc);color:#1a1200}
+  .prow{display:flex;gap:8px;align-items:center;margin-top:8px}
+  .prow .dot{flex:0 0 22px;height:22px;border-radius:50%;border:2px solid rgba(255,255,255,.4)}
+  .prow input{flex:1;min-width:0}
+  .prow select{flex:0 0 120px}
+  .mapwrap{background:#0b1b2e;border-radius:14px;border:1px solid var(--line);padding:6px;margin-top:10px;overflow:auto}
+  svg.map{width:100%;height:auto;display:block}
+  .legend{display:flex;flex-wrap:wrap;gap:6px 14px;font-size:12px;color:var(--mut);margin-top:8px}
+  .legend i{display:inline-block;width:12px;height:12px;border-radius:3px;margin-right:5px;vertical-align:-1px}
+  .startlist{display:grid;grid-template-columns:repeat(auto-fill,minmax(230px,1fr));gap:8px;margin-top:8px}
+  .st{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg2);border-left:4px solid var(--pc)}
+  .st b{display:block;font-size:14px}
+  .st span{display:block;font-size:12px;color:var(--mut);margin-top:3px;line-height:1.4}
+  .inv{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:8px}
+  .inv label{font-size:11px;color:var(--mut2);display:block}
+  .inv input{padding:7px;font-size:14px}
+  .invbox{border:1px solid var(--line);border-radius:12px;padding:10px;margin-top:8px;background:var(--bg2)}
+  .invbox h4{margin:0 0 6px;font-size:13px;color:var(--acc)}
+  details.ed{margin-top:10px;border:1px solid var(--line);border-radius:12px;background:var(--card);overflow:hidden}
+  details.ed>summary{padding:12px 14px;cursor:pointer;font-weight:700;list-style:none}
+  .edbody{padding:0 12px 12px}
+  /* Missionskarten */
+  .mcard{border:1px solid var(--line);border-radius:12px;padding:10px 12px;background:var(--bg2);margin-top:8px;position:relative}
+  .mcard b{font-size:14px}
+  .mcard .vp{position:absolute;right:10px;top:8px;background:var(--acc);color:#1a1200;font-weight:800;font-size:12px;padding:2px 8px;border-radius:12px}
+  .mcard p{margin:4px 0 0;font-size:12.5px;color:var(--mut);line-height:1.45}
+  .mcard.hidden p,.mcard.hidden b{filter:blur(6px);user-select:none}
+  .mcard.done{border-color:var(--green)}
+  .mcard .tag{font-size:10px;color:var(--mut2);text-transform:uppercase;letter-spacing:.5px}
+  /* Tracker */
+  .pl{border:1px solid var(--line);border-radius:14px;padding:10px 12px;background:var(--bg2);border-top:3px solid var(--pc);margin-top:10px}
+  .pl .head{display:flex;justify-content:space-between;align-items:baseline}
+  .pl .head b{font-size:16px}
+  .pl .head .tot{font-size:24px;font-weight:800;color:var(--acc)}
+  .pl.win{box-shadow:0 0 0 2px var(--green)}
+  .cnt{display:grid;grid-template-columns:repeat(auto-fill,minmax(150px,1fr));gap:6px;margin-top:8px}
+  .c{display:flex;align-items:center;justify-content:space-between;gap:6px;padding:6px 8px;border-radius:10px;background:var(--card);border:1px solid var(--line);font-size:12.5px}
+  .c span{flex:1;color:var(--mut)}
+  .c button{width:28px;height:28px;border-radius:8px;border:1px solid var(--line);background:var(--card2);color:var(--ink);font-weight:800;cursor:pointer}
+  .c b{min-width:18px;text-align:center}
+  .tog{padding:6px 8px;border-radius:10px;border:1px solid var(--line);background:var(--card);font-size:12.5px;color:var(--mut);cursor:pointer}
+  .tog.on{border-color:var(--acc);color:var(--acc)}
+  .target{display:flex;justify-content:space-between;align-items:center;padding:10px 12px;border-radius:12px;background:var(--bg2);border:1px solid var(--line);font-size:13px;color:var(--mut)}
+  .target b{color:var(--ink);font-size:16px}
+  .ovl{position:fixed;inset:0;background:rgba(8,10,14,.93);z-index:50;overflow-y:auto;padding:14px}
+  .ovl .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:16px;max-width:560px;margin:0 auto 40px;box-shadow:var(--shadow)}
+  .foot{text-align:center;color:var(--mut2);font-size:11px;margin-top:20px}
+  .noprint{}
+  /* Druck */
+  #print{display:none}
+  @media print{
+    @page{size:A4;margin:12mm}
+    body{background:#fff!important;color:#000;padding:0}
+    header,.wrap,.foot{display:none!important}
+    #print{display:block;color:#000;font-family:-apple-system,"Segoe UI",Roboto,Helvetica,Arial,sans-serif}
+    #print .page{break-after:page;page-break-after:always}
+    #print .page:last-child{break-after:auto;page-break-after:auto}
+    #print h2{margin:0 0 4px;font-size:18px}
+    #print h3{margin:12px 0 4px;font-size:13px;text-transform:uppercase;letter-spacing:.6px;color:#333}
+    #print .meta{font-size:11px;color:#444}
+    #print svg.map{width:100%;height:auto;max-height:150mm}
+    #print .legend{color:#333}
+    #print .cards{display:grid;grid-template-columns:1fr 1fr;gap:6mm}
+    #print .pc{border:1.5px dashed #777;border-radius:3mm;padding:5mm;min-height:42mm;break-inside:avoid;position:relative}
+    #print .pc .who{font-size:10px;color:#666;text-transform:uppercase;letter-spacing:.5px}
+    #print .pc b{display:block;font-size:14px;margin-top:2px}
+    #print .pc p{margin:3px 0 0;font-size:11.5px;line-height:1.4}
+    #print .pc .vp{position:absolute;right:4mm;top:4mm;border:1.5px solid #000;border-radius:50%;width:9mm;height:9mm;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:12px}
+    #print .rules{font-size:11px;line-height:1.5;columns:2;column-gap:8mm}
+    #print .rules h4{margin:6px 0 2px;font-size:11.5px}
+    #print .rules p{margin:0 0 4px}
+    #print table{width:100%;border-collapse:collapse;font-size:10.5px}
+    #print td,#print th{border-bottom:.5px solid #999;padding:3px 4px;text-align:left;vertical-align:top}
+    #print .sl{display:grid;grid-template-columns:1fr 1fr;gap:4mm;font-size:11px}
+    #print .sl div{border:1px solid #999;border-radius:2mm;padding:3mm}
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>CAT<span class="hl">A</span>N</h1>
+  <div class="sub" id="subline">Spielplan-Generator · Missionen · Siegpunkte</div>
+</header>
+<div class="wrap">
+  <div class="tabs">
+    <button class="tab active" data-tab="gen">🗺️ Generator</button>
+    <button class="tab" data-tab="game">🏆 Partie</button>
+    <button class="tab" data-tab="arch">💾 Karten</button>
+    <button class="tab" data-tab="inv">📦 Material</button>
+  </div>
+  <div id="app"></div>
+</div>
+<div class="foot">Läuft offline · Karten, Material & Partie werden lokal gespeichert</div>
+<div id="print"></div>
+
+<script>
+/* ===== Catan Spielplan-Generator – Engine (1. Edition Kosmos: Grundspiel 95, Ergänzung 96, Seefahrer 97, Seefahrer-Ergänzung) ===== */
+const TERRAIN={wood:{n:"Wald",res:"Holz",c:"#2f7d3a"},sheep:{n:"Weide",res:"Wolle",c:"#8fc24a"},grain:{n:"Acker",res:"Getreide",c:"#e3b53a"},brick:{n:"Hügel",res:"Lehm",c:"#c0603a"},ore:{n:"Gebirge",res:"Erz",c:"#8a8f99"},desert:{n:"Wüste",res:null,c:"#d9c28a"},gold:{n:"Goldfluss",res:"Gold",c:"#f0c43c"},sea:{n:"Meer",res:null,c:"#2a6db5"}};
+const RES_KEYS=["wood","sheep","grain","brick","ore"];
+const PIPS={2:1,3:2,4:3,5:4,6:5,8:5,9:4,10:3,11:2,12:1};
+// Inventar je Box (editierbar in der App). harborSea = Meerfelder mit aufgedrucktem Hafen (Grundspiel), harborTok = lose Hafenplättchen (Seefahrer)
+const INVENTORY_DEFAULT={
+  base:  {land:{wood:4,sheep:4,grain:4,brick:3,ore:3,desert:1,gold:0},sea:9,harborSea:{generic:4,specific:5},tokens:[2,3,3,4,4,5,5,6,6,8,8,9,9,10,10,11,11,12],vpChips:0},
+  base56:{land:{wood:2,sheep:2,grain:2,brick:2,ore:2,desert:1,gold:0},sea:8,harborSea:{generic:2,specific:0},tokens:[2,3,4,5,6,8,9,10,11,12],vpChips:0},
+  sf:    {land:{wood:1,sheep:1,grain:1,brick:2,ore:2,desert:3,gold:2},sea:12,harborTok:{generic:7,specific:5},tokens:[2,3,4,5,6,8,9,10,11,12],vpChips:8},
+  sf56:  {land:{wood:0,sheep:0,grain:0,brick:0,ore:0,desert:0,gold:1},sea:8,harborTok:{generic:0,specific:0},tokens:[],vpChips:6}
+};
+function rnd(n){ if(typeof crypto!=="undefined"&&crypto.getRandomValues){const a=new Uint32Array(1);const max=Math.floor(0xFFFFFFFF/n)*n;let x;do{crypto.getRandomValues(a);x=a[0];}while(x>=max);return x%n;} return Math.floor(Math.random()*n); }
+function shuffle(a){a=a.slice();for(let i=a.length-1;i>0;i--){const j=rnd(i+1);[a[i],a[j]]=[a[j],a[i]];}return a;}
+const pick=a=>a[rnd(a.length)];
+
+/* ---------- Inventar zusammenführen ---------- */
+function mergeInventory(inv,boxes){
+  const out={land:{wood:0,sheep:0,grain:0,brick:0,ore:0,desert:0,gold:0},sea:0,harborSea:{generic:0,specific:0},harborTok:{generic:0,specific:0},tokens:[],vpChips:0};
+  const use=[];
+  if(boxes.base)use.push("base"); if(boxes.base&&boxes.base56)use.push("base56"); if(boxes.sf)use.push("sf"); if(boxes.sf&&boxes.sf56)use.push("sf56");
+  use.forEach(k=>{ const b=inv[k]; if(!b)return;
+    Object.keys(out.land).forEach(t=>out.land[t]+=(b.land[t]||0));
+    out.sea+=b.sea||0;
+    if(b.harborSea){out.harborSea.generic+=b.harborSea.generic||0;out.harborSea.specific+=b.harborSea.specific||0;}
+    if(b.harborTok){out.harborTok.generic+=b.harborTok.generic||0;out.harborTok.specific+=b.harborTok.specific||0;}
+    out.tokens=out.tokens.concat(b.tokens||[]); out.vpChips+=b.vpChips||0;
+  });
+  out.seaTotal=out.sea+out.harborSea.generic+out.harborSea.specific; // Hafen-Meerfelder sind auch Meerfelder
+  return out;
+}
+
+/* ---------- Hex-Gitter (odd-r, pointy-top) ---------- */
+function neighbors(r,c){ const odd=r&1; return odd?[[r,c-1],[r,c+1],[r-1,c],[r-1,c+1],[r+1,c],[r+1,c+1]]:[[r,c-1],[r,c+1],[r-1,c-1],[r-1,c],[r+1,c-1],[r+1,c]]; }
+function hexCenter(r,c,size){ const w=Math.sqrt(3)*size; return {x:w*(c+0.5*(r&1))+w/2, y:size*1.5*r+size}; }
+function hexCorners(r,c,size){ const o=hexCenter(r,c,size); const pts=[]; for(let k=0;k<6;k++){const a=Math.PI/180*(60*k-30);pts.push({x:o.x+size*Math.cos(a),y:o.y+size*Math.sin(a)});} return pts; }
+const key=(r,c)=>r+","+c;
+
+class Board{
+  constructor(rows,cols){ this.rows=rows;this.cols=cols;this.cells=new Map(); }
+  set(r,c,cell){ this.cells.set(key(r,c),Object.assign({r,c},cell)); }
+  get(r,c){ return this.cells.get(key(r,c)); }
+  all(){ return [...this.cells.values()]; }
+  land(){ return this.all().filter(h=>h.t!=="sea"&&h.t!=="void"&&h.t!=="frame"); }
+  nb(h){ return neighbors(h.r,h.c).map(([r,c])=>this.get(r,c)).filter(Boolean); }
+  landNb(h){ return this.nb(h).filter(x=>x.t!=="sea"&&x.t!=="void"&&x.t!=="frame"); }
+  // Eckpunkte: key über gerundete Pixelkoordinaten
+  vertices(){
+    if(this._v) return this._v;
+    const V=new Map();
+    this.all().forEach(h=>{ hexCorners(h.r,h.c,10).forEach((p,k)=>{ const kk=Math.round(p.x*10)+"_"+Math.round(p.y*10); let v=V.get(kk); if(!v){v={id:kk,x:p.x,y:p.y,hexes:[]};V.set(kk,v);} v.hexes.push(h); }); });
+    V.forEach(v=>{ v.land=v.hexes.filter(h=>h.t!=="sea"&&h.t!=="void"&&h.t!=="frame"); });
+    this._v=V; return V;
+  }
+  vertexNeighbors(v){ // benachbarte Eckpunkte (über Kanten) – via Distanz
+    if(!this._vn){ this._vn=new Map(); const arr=[...this.vertices().values()]; const d=10; arr.forEach(a=>{ this._vn.set(a.id,arr.filter(b=>b!==a&&Math.abs(Math.hypot(a.x-b.x,a.y-b.y)-d)<0.6)); }); }
+    return this._vn.get(v.id)||[];
+  }
+  islands(){ // Zusammenhangskomponenten des Landes
+    const seen=new Set(),isl=[]; this.land().forEach(h=>{ if(seen.has(key(h.r,h.c)))return; const comp=[],st=[h]; seen.add(key(h.r,h.c)); while(st.length){const x=st.pop();comp.push(x);this.landNb(x).forEach(y=>{const k=key(y.r,y.c);if(!seen.has(k)){seen.add(k);st.push(y);}});} isl.push(comp); });
+    isl.sort((a,b)=>b.length-a.length); isl.forEach((comp,i)=>comp.forEach(h=>h.isl=i)); return isl;
+  }
+}
+
+/* ---------- Layouts ---------- */
+function ringAround(mask,rows,cols){ const s=new Set(mask.map(([r,c])=>key(r,c))); const ring=new Set(); mask.forEach(([r,c])=>neighbors(r,c).forEach(([rr,cc])=>{ if(!s.has(key(rr,cc))) ring.add(key(rr,cc)); })); return [...ring].map(k=>k.split(",").map(Number)); }
+function centeredRows(lens){ const W=Math.max(...lens); const mask=[]; lens.forEach((len,i)=>{ const r=i+1; // Zeile 0 für Meer frei lassen
+    const off=Math.floor((W-len)/2); for(let k=0;k<len;k++){ let c=off+k+1; // +1 Spalte Rand
+      // odd-r: ungerade Zeilen sind nach rechts versetzt; Zentrierung über Offsets
+      mask.push([r,c]); } }); return mask; }
+// Standardinsel: Reihen 3-4-5-4-3 bzw. 3-4-5-6-5-4-3 in odd-r-Koordinaten so, dass die Form symmetrisch bleibt
+function classicMask(big){
+  const lens=big?[3,4,5,6,5,4,3]:[3,4,5,4,3]; const mask=[]; const mid=Math.floor(lens.length/2);
+  lens.forEach((len,i)=>{ const r=i+1; const d=Math.abs(i-mid); // Abstand zur Mittelzeile
+    // Startspalte: Mittelzeile beginnt bei 1; jede Zeile davon entfernt rückt um ceil/floor
+    let start=1+Math.ceil(d/2)-((r&1)&&d%2===1?0:0); start=1+Math.floor((lens[mid]-len)/2)+(((r&1)===0)&&(len%2===lens[mid]%2)?0:0);
+    for(let k=0;k<len;k++) mask.push([r,start+k]); });
+  return mask;
+}
+// Besser: Standardinsel explizit per Nachbarschaft wachsen lassen ist fehleranfällig; wir prüfen Masken auf Zusammenhang und Zeilenlängen.
+function buildClassic(big){
+  // Konstruktion über axiale Koordinaten eines regulären Sechsecks mit Radius 2 (19) bzw. "3-4-5-6-5-4-3" (30)
+  const cells=[];
+  if(!big){ for(let q=-2;q<=2;q++)for(let rr=-2;rr<=2;rr++){ if(Math.abs(q+rr)<=2) cells.push([q,rr]); } }
+  else { // Reihen -3..3 mit Längen 3,4,5,6,5,4,3
+    const lens={"-3":3,"-2":4,"-1":5,"0":6,"1":5,"2":4,"3":3}; for(let rr=-3;rr<=3;rr++){ const len=lens[rr]; const qStart=-Math.floor((len-1)/2)-Math.floor((rr+ (rr>0?1:0))/2)*0; // provisorisch
+      for(let k=0;k<len;k++) cells.push([k,rr]); }
+  }
+  // axial -> odd-r offset
+  const off=cells.map(([q,rr])=>[rr,q+((rr-(rr&1))>>1)]);
+  const minR=Math.min(...off.map(x=>x[0])), minC=Math.min(...off.map(x=>x[1]));
+  return off.map(([r,c])=>[r-minR+1,c-minC+1]);
+}
+function layoutClassic(big){
+  const rowsDef=big?[[1,3],[2,4],[3,5],[4,6],[5,5],[6,4],[7,3]]:[[1,3],[2,4],[3,5],[4,4],[5,3]];
+  const starts=big?{1:3,2:3,3:2,4:2,5:2,6:3,7:3}:{1:2,2:2,3:1,4:2,5:2};
+  const mask=[]; rowsDef.forEach(([r,len])=>{ for(let k=0;k<len;k++) mask.push([r,starts[r]+k]); });
+  const ring=ringAround(mask);
+  const allR=mask.concat(ring).map(x=>x[0]), allC=mask.concat(ring).map(x=>x[1]);
+  const minR=Math.min(...allR),minC=Math.min(...allC);
+  const shiftR=minR-(minR%2); // Parität der Zeilen erhalten
+  const norm=a=>a.map(([r,c])=>[r-shiftR,c-minC]);
+  const m2=norm(mask),r2=norm(ring);
+  const rows=Math.max(...m2.concat(r2).map(x=>x[0]))+1, cols=Math.max(...m2.concat(r2).map(x=>x[1]))+1;
+  return {rows,cols,land:m2,sea:r2};
+}
+
+/* ---------- Insel-Erzeugung für Seefahrer ---------- */
+function growIslands(rows,cols,landCount,opt){
+  // opt.mode: "main" (Hauptinsel + n Nebeninseln), "equal" (n gleich große), "archipel"
+  const inside=(r,c)=>r>=0&&r<rows&&c>=0&&c<cols;
+  const border=(r,c)=>r===0||c===0||r===rows-1||c===cols-1;
+  const land=new Set(), blocked=new Set();
+  const nbOf=(r,c)=>neighbors(r,c).filter(([rr,cc])=>inside(rr,cc));
+  function canPlace(r,c,islId,owner){ if(!inside(r,c)||border(r,c)||land.has(key(r,c)))return false; // Inseln getrennt halten: kein Nachbar gehört zu anderer Insel
+    return nbOf(r,c).every(([rr,cc])=>{const o=owner.get(key(rr,cc)); return o==null||o===islId;}); }
+  function grow(size,islId,owner,seedPref){
+    let seeds=[]; for(let r=1;r<rows-1;r++)for(let c=1;c<cols-1;c++){ if(canPlace(r,c,islId,owner)&&nbOf(r,c).every(([rr,cc])=>!land.has(key(rr,cc)))) seeds.push([r,c]); }
+    if(seedPref) seeds=seeds.sort((a,b)=>seedPref(b)-seedPref(a)).slice(0,Math.max(1,Math.floor(seeds.length/4)));
+    if(!seeds.length) return 0;
+    const [sr,sc]=pick(seeds); const cells=[[sr,sc]]; land.add(key(sr,sc)); owner.set(key(sr,sc),islId);
+    let guard=0;
+    while(cells.length<size&&guard++<400){
+      const frontier=[]; cells.forEach(([r,c])=>nbOf(r,c).forEach(([rr,cc])=>{ if(canPlace(rr,cc,islId,owner)) frontier.push([rr,cc]); }));
+      if(!frontier.length)break;
+      // kompakt wachsen: bevorzuge Zellen mit vielen Insel-Nachbarn
+      frontier.sort((a,b)=>{ const na=nbOf(a[0],a[1]).filter(([rr,cc])=>owner.get(key(rr,cc))===islId).length, nb=nbOf(b[0],b[1]).filter(([rr,cc])=>owner.get(key(rr,cc))===islId).length; return (nb-na)+(rnd(3)-1); });
+      const [r,c]=frontier[Math.min(frontier.length-1,rnd(Math.min(3,frontier.length)))];
+      cells.push([r,c]); land.add(key(r,c)); owner.set(key(r,c),islId);
+    }
+    return cells.length;
+  }
+  const owner=new Map(); let placed=0; const sizes=[];
+  if(opt.mode==="main"){ const n=opt.islands||3; const smallTotal=Math.max(n*2,Math.round(landCount*0.35)); const mainSize=landCount-smallTotal; sizes.push(mainSize); const per=Math.floor(smallTotal/n); for(let i=0;i<n;i++) sizes.push(per+(i<smallTotal%n?1:0)); }
+  else if(opt.mode==="equal"){ const n=opt.islands||3; const per=Math.floor(landCount/n); for(let i=0;i<n;i++) sizes.push(per+(i<landCount%n?1:0)); }
+  else { let rest=landCount; while(rest>0){ const s=Math.min(rest,2+rnd(4)); sizes.push(s); rest-=s; } }
+  const centerPref=([r,c])=>-(Math.abs(r-(rows-1)/2)+Math.abs(c-(cols-1)/2));
+  const edgePref=([r,c])=>(Math.abs(r-(rows-1)/2)+Math.abs(c-(cols-1)/2));
+  sizes.forEach((s,i)=>{ placed+=grow(s,i,owner,i===0&&opt.mode==="main"?centerPref:(opt.mode==="main"?edgePref:null)); });
+  return {land:[...land].map(k=>k.split(",").map(Number)),owner,placed,wanted:landCount};
+}
+
+/* ---------- Generator ---------- */
+function generate(cfg){
+  /* cfg: {boxes:{base,base56,sf,sf56}, inv, players, layout:"classic"|"main"|"equal"|"archipel", islands, rows, cols,
+           deserts, redAdjacent:false, sameAdjacent:false, hidden:0, smallIslandsRich:true, harborsRandom:true, harborCount } */
+  const inv=mergeInventory(cfg.inv||INVENTORY_DEFAULT,cfg.boxes);
+  const warn=[];
+  let rows,cols,landCells,seaCells,voidCells=[];
+  const big=cfg.players>=5;
+  if(cfg.layout==="classic"){
+    const L=layoutClassic(big); rows=L.rows;cols=L.cols;landCells=L.land;seaCells=L.sea;
+  } else {
+    const landAvailAll=Object.values(inv.land).reduce((a,b)=>a+b,0)-Math.max(0,inv.land.desert-(cfg.deserts??1))-Math.max(0,inv.land.gold-(cfg.gold??inv.land.gold));
+    let want=Math.min(landAvailAll,cfg.landCount||(cfg.players>=5?32:22));
+    if(cfg.rows&&cfg.cols){ rows=cfg.rows; cols=cfg.cols; }
+    else { // Innenfläche (ohne Rahmen): Landdichte ≤ 60 %, Meerfelder nicht über Inventar
+      const innerMin=Math.ceil(want/0.6), innerMax=want+inv.seaTotal;
+      let inner=Math.round(want*1.9); inner=Math.max(innerMin,Math.min(inner,Math.max(innerMax,innerMin)));
+      const ci=Math.max(4,Math.round(Math.sqrt(inner*1.2))), ri=Math.max(4,Math.ceil(inner/ci)); rows=ri+2; cols=ci+2; }
+    const inner=(rows-2)*(cols-2); want=Math.min(want,Math.round(inner*0.6));
+    let g=null; for(let t=0;t<12;t++){ const gg=growIslands(rows,cols,want,{mode:cfg.layout,islands:cfg.islands||3}); if(!g||gg.placed>g.placed)g=gg; if(g.placed>=g.wanted)break; }
+    if(g.placed<g.wanted) warn.push(`Nur ${g.placed} von ${g.wanted} Landfeldern passten aufs Brett – Brett vergrößern oder weniger Inseln.`);
+    landCells=g.land;
+    const ls=new Set(landCells.map(([r,c])=>key(r,c)));
+    seaCells=[]; const frameCells=[]; for(let r=0;r<rows;r++)for(let c=0;c<cols;c++){ if(ls.has(key(r,c)))continue; if(r===0||c===0||r===rows-1||c===cols-1) frameCells.push([r,c]); else seaCells.push([r,c]); }
+    frameCells.forEach(([r,c])=>voidCells.push([r,c,"frame"]));
+    // Meerfelder-Inventar: wenn zu wenige, äußere Meerfelder als "Rahmen/leer" markieren (void), die ans Land grenzenden behalten
+    if(seaCells.length>inv.seaTotal){
+      const need=seaCells.length-inv.seaTotal;
+      const coastal=new Set(); landCells.forEach(([r,c])=>neighbors(r,c).forEach(([rr,cc])=>coastal.add(key(rr,cc))));
+      const removable=seaCells.filter(([r,c])=>!coastal.has(key(r,c)));
+      // äußerste zuerst
+      removable.sort((a,b)=>(Math.min(b[0],rows-1-b[0],b[1],cols-1-b[1]))-(Math.min(a[0],rows-1-a[0],a[1],cols-1-a[1])));
+      voidCells=voidCells.concat(removable.slice(0,need));
+      if(voidCells.length<need) warn.push(`Es fehlen ${need-voidCells.length} Meerfelder – Lücken bleiben offen (Rahmen/Tisch).`);
+      const vs=new Set(voidCells.map(([r,c])=>key(r,c))); seaCells=seaCells.filter(([r,c])=>!vs.has(key(r,c)));
+    }
+  }
+  const B=new Board(rows,cols);
+  seaCells.forEach(([r,c])=>B.set(r,c,{t:"sea"})); voidCells.forEach(([r,c,t])=>B.set(r,c,{t:t||"void"})); landCells.forEach(([r,c])=>B.set(r,c,{t:"land"}));
+  const isl=B.islands();
+
+  /* Terrain verteilen */
+  const nLand=landCells.length;
+  let deserts=Math.min(cfg.deserts??1,inv.land.desert,nLand);
+  let gold=Math.min(cfg.gold??(cfg.boxes.sf?Math.min(inv.land.gold,isl.length>1?2:1):0),inv.land.gold);
+  let prodNeed=nLand-deserts-gold;
+  const pool=[]; RES_KEYS.forEach(k=>{for(let i=0;i<inv.land[k];i++)pool.push(k);});
+  if(pool.length<prodNeed){ const extra=Math.min(prodNeed-pool.length,inv.land.desert-deserts); deserts+=extra; prodNeed-=extra;
+    if(pool.length<prodNeed){ warn.push(`Zu wenig Landfelder im Inventar – ${prodNeed-pool.length} Felder werden zu Meer.`); } }
+  // ausgewogene Auswahl: Verhältnis Holz/Wolle/Getreide : Lehm/Erz ≈ 4:4:4:3:3
+  let chosen=[]; { const want={}; const base={wood:4,sheep:4,grain:4,brick:3,ore:3}; const tot=18; RES_KEYS.forEach(k=>want[k]=Math.min(inv.land[k],Math.round(prodNeed*base[k]/tot))); let sum=Object.values(want).reduce((a,b)=>a+b,0);
+    const order=shuffle(RES_KEYS); let gi=0; while(sum<prodNeed&&gi<100){ const k=order[gi%5]; if(want[k]<inv.land[k]){want[k]++;sum++;} gi++; } gi=0; while(sum>prodNeed){ const k=order[gi%5]; if(want[k]>0){want[k]--;sum--;} gi++; }
+    RES_KEYS.forEach(k=>{for(let i=0;i<want[k];i++)chosen.push(k);}); }
+  const terrainList=shuffle(chosen.concat(Array(deserts).fill("desert")).concat(Array(gold).fill("gold")));
+  { let lh=B.land(); while(lh.length>terrainList.length){ const h=lh.pop(); h.t="sea"; } B._v=null; B._vn=null; }
+  B.islands();
+  const landHexes=B.land();
+  // Gold & Wüste bevorzugt: Gold auf Nebeninseln, Wüste auf Hauptinsel (klassisch) – sonst zufällig
+  let assignOrder=shuffle(landHexes);
+  if(isl.length>1){ const small=assignOrder.filter(h=>h.isl>0), main=assignOrder.filter(h=>h.isl===0);
+    const golds=terrainList.filter(t=>t==="gold"), des=terrainList.filter(t=>t==="desert"), rest=shuffle(terrainList.filter(t=>t!=="gold"&&t!=="desert"));
+    const targets=small.slice(0,golds.length).concat(main.slice(0,des.length)); const tset=new Set(targets);
+    golds.forEach((g,i)=>{ if(small[i]) small[i].t="gold"; else rest.push("gold"); });
+    des.forEach((d,i)=>{ if(main[i]) main[i].t="desert"; else rest.push("desert"); });
+    const others=assignOrder.filter(h=>!tset.has(h)); others.forEach((h,i)=>h.t=rest[i]||"desert");
+  } else assignOrder.forEach((h,i)=>h.t=terrainList[i]||"desert");
+  // Gleiche Rohstoffe nicht gehäuft: einfache Tauschoptimierung
+  for(let it=0;it<200;it++){ const bad=landHexes.filter(h=>RES_KEYS.includes(h.t)&&B.landNb(h).filter(n=>n.t===h.t).length>=2); if(!bad.length)break; const a=pick(bad), b=pick(landHexes.filter(h=>RES_KEYS.includes(h.t)&&h.t!==a.t)); if(!b)break; const t=a.t;a.t=b.t;b.t=t; }
+
+  /* Zahlenchips */
+  const prod=landHexes.filter(h=>h.t!=="desert");
+  let tokens=inv.tokens.slice();
+  if(tokens.length<prod.length){ warn.push(`Nur ${tokens.length} Zahlenchips für ${prod.length} Felder – ${prod.length-tokens.length} Felder bleiben ohne Zahl.`); }
+  const nTok=Math.min(tokens.length,prod.length);
+  // Chip-Auswahl: wenn Überschuss, 2/12 zuletzt, Verhältnis halten
+  const tokPool=(()=>{ if(tokens.length===nTok)return tokens; const s=shuffle(tokens).sort((a,b)=>PIPS[b]-PIPS[a]); // häufigere Chips bevorzugen, aber Mischung
+    const out=[]; const byVal={}; s.forEach(v=>(byVal[v]=byVal[v]||[]).push(v)); const vals=shuffle(Object.keys(byVal).map(Number)); let i=0; while(out.length<nTok){ const v=vals[i%vals.length]; if(byVal[v].length){out.push(byVal[v].pop());} i++; if(i>1000)break; } return out; })();
+  const best={score:-1e9,assign:null};
+  const redOk=(h,v,A)=>{ if(v!==6&&v!==8)return true; if(cfg.redAdjacent)return true; return B.landNb(h).every(n=>{const w=A.get(n);return !(w===6||w===8);}); };
+  const sameOk=(h,v,A)=>{ if(cfg.sameAdjacent!==false)return true; return B.landNb(h).every(n=>A.get(n)!==v); };
+  const targetsRich=cfg.smallIslandsRich&&isl.length>1;
+  for(let attempt=0;attempt<400;attempt++){
+    const A=new Map(); let order=shuffle(prod).slice(0,nTok); let pool=shuffle(tokPool);
+    if(targetsRich){ // Nebeninseln bekommen bevorzugt starke Zahlen: Reihenfolge Nebeninseln zuerst, Pool nach Pips sortiert (mit Rauschen)
+      order=order.sort((a,b)=>(b.isl>0?1:0)-(a.isl>0?1:0)); pool=pool.sort((a,b)=>(PIPS[b]-PIPS[a])+(rnd(5)-2)); }
+    let ok=true;
+    for(const h of order){ let placedTok=false; for(let i=0;i<pool.length;i++){ const v=pool[i]; if(redOk(h,v,A)&&sameOk(h,v,A)){A.set(h,v);pool.splice(i,1);placedTok=true;break;} } if(!placedTok){ok=false;break;} }
+    if(!ok) continue;
+    // Bewertung: Pips je Rohstoff ausgeglichen, keine Rohstoffart mit allen Chips < 3 Pips
+    const pipsBy={}; const cnt={}; A.forEach((v,h)=>{ pipsBy[h.t]=(pipsBy[h.t]||0)+PIPS[v]; cnt[h.t]=(cnt[h.t]||0)+1; });
+    const avgs=Object.keys(pipsBy).filter(k=>k!=="gold").map(k=>pipsBy[k]/cnt[k]); const mean=avgs.reduce((a,b)=>a+b,0)/avgs.length; const varc=avgs.reduce((a,b)=>a+(b-mean)**2,0)/avgs.length;
+    // Doppelte Zahl auf gleichem Rohstoff vermeiden
+    let dup=0; const seenVR=new Set(); A.forEach((v,h)=>{ const k=h.t+v; if(seenVR.has(k))dup++; seenVR.add(k); });
+    const score=-varc*10-dup*2+(attempt===0?0:0);
+    if(score>best.score){best.score=score;best.assign=A;}
+    if(attempt>60&&best.score>-3) break;
+  }
+  if(!best.assign){ warn.push("Zahlenregeln nicht erfüllbar – 6/8-Regel gelockert."); const A=new Map(); shuffle(prod).slice(0,nTok).forEach((h,i)=>A.set(h,tokPool[i])); best.assign=A; }
+  best.assign.forEach((v,h)=>h.n=v);
+
+  /* Häfen */
+  const coastal=B.all().filter(h=>h.t==="sea"&&B.landNb(h).length>0);
+  const hGeneric=inv.harborSea.generic+inv.harborTok.generic, hSpecific=inv.harborSea.specific+inv.harborTok.specific;
+  let want=cfg.harborCount!=null?cfg.harborCount:Math.round(nLand*9/19);
+  want=Math.min(want,hGeneric+hSpecific,coastal.length);
+  const nSpec=Math.min(hSpecific,Math.round(want*5/9)); const nGen=Math.min(hGeneric,want-nSpec);
+  const types=shuffle(Array(nGen).fill("3:1").concat(shuffle(RES_KEYS.concat(RES_KEYS)).slice(0,nSpec).map(k=>"2:1 "+TERRAIN[k].res)));
+  const usedV=new Set(); const harbors=[];
+  const cand=shuffle(coastal);
+  const V=B.vertices();
+  // Eckpunkte eines Hex ermitteln
+  const cornersOf=h=>hexCorners(h.r,h.c,10).map(p=>Math.round(p.x*10)+"_"+Math.round(p.y*10));
+  for(const h of cand){ if(harbors.length>=types.length)break;
+    const landN=B.landNb(h); const target=pick(landN); // Hafen zeigt zu diesem Landfeld
+    // die beiden Eckpunkte an der Kante zum Landfeld
+    const ch=cornersOf(h), ct=cornersOf(target); const shared=ch.filter(k=>ct.includes(k)); if(shared.length!==2)continue;
+    if(shared.some(k=>usedV.has(k)))continue;
+    // benachbarte Eckpunkte der Hafen-Ecken auch sperren (keine Häfen Tür an Tür)
+    shared.forEach(k=>usedV.add(k));
+    h.harbor={type:types[harbors.length],to:{r:target.r,c:target.c}}; harbors.push(h);
+  }
+  if(harbors.length<types.length) warn.push(`Nur ${harbors.length} von ${types.length} Häfen passten an die Küste.`);
+
+  /* verdeckte Felder */
+  const hiddenN=Math.min(cfg.hidden||0,landHexes.length-2);
+  if(hiddenN>0){ let candH=landHexes.filter(h=>isl.length>1?h.isl>0:true); if(candH.length<hiddenN) candH=landHexes; shuffle(candH).slice(0,hiddenN).forEach(h=>h.hidden=true); }
+
+  /* Koordinaten-Labels */
+  landHexes.concat(B.all().filter(h=>h.t==="sea")).forEach(h=>{ h.label=String.fromCharCode(65+h.r)+(h.c+1); });
+
+  const map={rows,cols,cells:B.all().map(h=>({r:h.r,c:h.c,t:h.t,n:h.n||null,harbor:h.harbor||null,hidden:!!h.hidden,isl:h.isl??null,label:h.label})),
+    islands:isl.map(c=>c.length),warn,inv:{landUsed:nLand,seaUsed:seaCells.length,tokensUsed:nTok,harbors:harbors.length},
+    hiddenStack:shuffle(landHexes.filter(h=>h.hidden&&h.n).map(h=>h.n)),cfg:JSON.parse(JSON.stringify(cfg))};
+  return map;
+}
+
+/* ---------- Startpositionen ---------- */
+function boardFromMap(map){ const B=new Board(map.rows,map.cols); map.cells.forEach(c=>B.set(c.r,c.c,{t:c.t,n:c.n,harbor:c.harbor,hidden:c.hidden,isl:c.isl,label:c.label})); return B; }
+function vertexValue(v){ let pips=0; const res=new Set(); v.land.forEach(h=>{ if(h.n&&!h.hidden){pips+=PIPS[h.n]; if(h.t!=="desert")res.add(h.t);} }); return pips+res.size*0.6+(v.land.length===3?0.5:0); }
+function startPositions(map,players,opt){
+  const B=boardFromMap(map); const V=[...B.vertices().values()].filter(v=>v.land.length>0&&v.land.some(h=>h.t!=="desert"&&!h.hidden));
+  V.forEach(v=>v.val=vertexValue(v));
+  const hexAt=(r,c)=>B.get(r,c);
+  map.cells.filter(c=>c.harbor).forEach(c=>{ const h=hexAt(c.r,c.c), t=hexAt(c.harbor.to.r,c.harbor.to.c); const ck=x=>hexCorners(x.r,x.c,10).map(p=>Math.round(p.x*10)+"_"+Math.round(p.y*10)); const ch=ck(h),ct=ck(t); ch.filter(k=>ct.includes(k)).forEach(k=>{const v=B.vertices().get(k); if(v){v.harbor=c.harbor.type;v.val+=0.8;}}); });
+  const picks=Array.from({length:players},()=>[]);
+  const blockedSet=()=>{ const b=new Set(); picks.flat().forEach(v=>{ b.add(v.id); B.vertexNeighbors(v).forEach(n=>b.add(n.id)); }); return b; };
+  const free=()=>{ const b=blockedSet(); return V.filter(v=>!b.has(v.id)).sort((x,y)=>y.val-x.val); };
+  const tot=p=>picks[p].reduce((a,v)=>a+v.val,0);
+  // Schlange: Runde 1 beste freie Ecke (leicht zufällig), Runde 2 Ausgleich auf die Führenden
+  for(let p=0;p<players;p++){ const f=free(); if(f.length) picks[p].push(f[Math.min(f.length-1,rnd(2))]); }
+  for(let p=players-1;p>=0;p--){ const f=free(); if(!f.length)break; const target=Math.max(...picks.map((_,q)=>tot(q)))-tot(p)+1; let best=f[0],bd=1e9; f.forEach(v=>{const d=Math.abs(v.val-target); if(d<bd){bd=d;best=v;}}); picks[p].push(best); }
+  // Feinausgleich: Schwächster darf seine 2. Ecke gegen eine freie tauschen, wenn es die Spanne verkleinert
+  for(let it=0;it<30;it++){
+    const t=picks.map((_,q)=>tot(q)); const hi=Math.max(...t), lo=Math.min(...t); if(hi-lo<=1.5)break;
+    const p=t.indexOf(lo); if(picks[p].length<2)break;
+    const cur=picks[p][1]; picks[p]=[picks[p][0]];
+    const f=free().filter(v=>v.id!==cur.id); const mean=t.reduce((a,b)=>a+b,0)/players;
+    let best=null,bd=Math.abs(lo-mean); f.forEach(v=>{ const d=Math.abs((lo-cur.val+v.val)-mean); if(d<bd){bd=d;best=v;} });
+    picks[p].push(best||cur); if(!best)break;
+  }
+  return picks.map(arr=>arr.map(v=>({id:v.id,x:v.x,y:v.y,val:Math.round(v.val*10)/10,hexes:v.hexes.map(h=>({label:h.label,t:h.t,n:h.n,isl:h.isl})),harbor:v.harbor||null})));
+}
+
+/* ===== Missionen ===== */
+const MISSIONS=[
+ // Grundspiel – Stufe A (2 SP)
+ {id:"fischer",box:"base",tier:"A",vp:2,name:"Fischervolk",text:"4 deiner Gebäude grenzen ans Meer (oder an den Rahmen), darunter mindestens 1 Stadt.",fit:f=>f.coastal?2:(f.inland?-2:0)},
+ {id:"binnen",box:"base",tier:"A",vp:2,name:"Binnenland",text:"4 deiner Gebäude haben keinen Kontakt zum Meer, darunter mindestens 1 Stadt.",feas:m=>m.features.maxIsland>=10,fit:f=>f.inland?2:(f.coastal?-1:0)},
+ {id:"wueste2",box:"base",tier:"A",vp:2,name:"Wüstensöhne",text:"2 deiner Gebäude grenzen an eine Wüste.",feas:m=>m.features.deserts>=1,fit:f=>f.nearDesert?2:0},
+ {id:"allein",box:"base",tier:"A",vp:2,name:"Alleinherrscher",text:"Du besitzt alle drei möglichen Bauplätze eines Rohstofffelds mit Zahlenchip (deine Gebäude an drei Ecken desselben Felds).",fit:f=>f.resources>=5?1:0},
+ {id:"hafen",box:"base",tier:"A",vp:2,name:"Hafenmeister",text:"3 Hafenpunkte: Siedlung an einem Hafen = 1, Stadt an einem Hafen = 2.",feas:m=>m.features.harbors>=3,fit:f=>f.nearHarbor?2:0},
+ {id:"bruecke",box:"base",tier:"A",vp:2,name:"Landbrücke",text:"Eine durchgehende eigene Straße von einer Küstenkreuzung zu einer anderen über mindestens 6 Straßenstücke.",feas:m=>m.features.maxIsland>=12,fit:f=>f.inland?1:0},
+ {id:"gross",box:"base",tier:"A",vp:2,name:"Großgrundbesitz",text:"Gebäude an allen fünf Rohstoffarten und an mindestens 7 verschiedenen Feldern.",fit:f=>f.resources<=3?1:0},
+ {id:"fortschritt",box:"base",tier:"A",vp:2,name:"Fortschrittler",text:"3 Fortschrittskarten (keine Ritter) gespielt.",ck:false},
+ {id:"fehlend",box:"base",tier:"A",vp:2,dyn:true,name:"Lückenschluss",text:"Baue eine Siedlung an einem Feld mit {RES}.",fit:f=>f.missing.length?3:-99},
+ // Grundspiel – Stufe B (3 SP)
+ {id:"wueste3",box:"base",tier:"B",vp:3,name:"Herr der Wüste",text:"3 deiner Gebäude grenzen an Wüsten.",feas:m=>m.features.deserts>=2,fit:f=>f.nearDesert?1:0},
+ {id:"doppel",box:"base",tier:"B",vp:3,name:"Doppelherrschaft",text:"Alleinherrscher bei zwei verschiedenen Feldern (je alle drei Bauplätze).",fit:()=>0},
+ {id:"asket",box:"base",tier:"B",vp:3,end:true,name:"Asket",text:"Endbedingung: Keines deiner Gebäude grenzt an eine 6 oder 8; du hast mindestens 5 Gebäude.",fit:f=>f.redPips===0?3:-3},
+ // Seefahrer – A
+ {id:"kolonial",box:"sf",tier:"A",vp:2,name:"Kolonialmacht",text:"Eine Siedlung und eine Stadt auf einer Insel, auf der du nicht gestartet bist.",feas:m=>m.features.islands>=2,fit:f=>f.onlySmall?3:(f.islandsStart.size>=2?-1:1)},
+ {id:"huepfer",box:"sf",tier:"A",vp:2,name:"Inselhüpfer",text:"Gebäude auf 3 verschiedenen Inseln.",feas:m=>m.features.islands>=3,fit:f=>f.islandsStart.size>=2?1:0},
+ {id:"leucht",box:"sf",tier:"A",vp:2,name:"Leuchtturmwärter",text:"Eine Siedlung auf einer Insel, die nur aus einem oder zwei Landfeldern besteht.",feas:m=>m.features.minIsland<=2,fit:()=>0},
+ {id:"fern",box:"sf",tier:"A",vp:2,name:"Fernhandel",text:"Eine ununterbrochene Schiffslinie über mindestens 4 Seefelder, die zwei deiner Gebäude verbindet.",feas:m=>m.features.sea>=10,fit:f=>f.coastal?1:0},
+ {id:"flotte",box:"sf",tier:"A",vp:2,name:"Flotte",text:"8 Schiffe gebaut.",feas:m=>m.features.sea>=10,fit:()=>0},
+ {id:"nebel",box:"sf",tier:"A",vp:2,name:"Nebelforscher",text:"4 verdeckte Felder selbst aufgedeckt.",feas:m=>m.features.hidden>=4,fit:()=>0},
+ // Seefahrer – B
+ {id:"inselreich",box:"sf",tier:"B",vp:3,end:true,name:"Inselreich",text:"Endbedingung: Alle deine Gebäude stehen auf einer einzigen Insel, mindestens 6 Gebäude, davon 2 Städte.",feas:m=>m.features.maxIsland>=8,fit:f=>f.islandsStart.size===1?1:-99},
+ // Städte & Ritter – A
+ {id:"ritterschlag",box:"ck",tier:"A",vp:2,name:"Ritterschlag",text:"3 aktive Ritter gleichzeitig, mindestens einer davon mächtig.",fit:()=>0},
+ {id:"festung",box:"ck",tier:"A",vp:2,name:"Festungsbauer",text:"3 Stadtmauern gebaut.",fit:()=>0},
+ {id:"patron",box:"ck",tier:"A",vp:2,name:"Schutzpatron",text:"Bei 3 Barbarenangriffen hattest du jeweils mindestens so viel Ritterstärke wie jeder andere Spieler.",fit:()=>0},
+ // Städte & Ritter – B
+ {id:"orden",box:"ck",tier:"B",vp:3,name:"Ritterorden",text:"Alle 6 deiner Ritterfiguren sind im Spiel.",fit:()=>0},
+ {id:"gelehrt",box:"ck",tier:"B",vp:3,name:"Universalgelehrter",text:"Stufe 3 in allen drei Entwicklungen (Handel, Politik, Wissenschaft).",fit:()=>0}
+];
+function mapFeatures(map){
+  const cells=map.cells, land=cells.filter(c=>c.t!=="sea"&&c.t!=="void"&&c.t!=="frame");
+  return {deserts:land.filter(c=>c.t==="desert").length,islands:map.islands.length,maxIsland:Math.max(...map.islands,0),minIsland:Math.min(...map.islands,99),
+    sea:cells.filter(c=>c.t==="sea").length,hidden:land.filter(c=>c.hidden).length,harbors:cells.filter(c=>c.harbor).length,gold:land.filter(c=>c.t==="gold").length};
+}
+function startFeatures(map,starts){ // starts: Ecken eines Spielers [{hexes:[{t,n,isl}],harbor}]
+  const f={coastal:false,inland:true,resources:0,missing:[],nearDesert:false,nearHarbor:false,islandsStart:new Set(),onlySmall:false,redPips:0};
+  const res=new Set();
+  starts.forEach(v=>{ const land=v.hexes.filter(h=>h.t!=="sea"&&h.t!=="frame"&&h.t!=="void"); if(land.length<v.hexes.length||land.length<3)f.coastal=true; else f.inland=f.inland&&true;
+    if(land.length===v.hexes.length&&land.length===3){} else f.inland=false;
+    land.forEach(h=>{ if(RES_KEYS.includes(h.t))res.add(h.t); if(h.t==="desert")f.nearDesert=true; if(h.isl!=null)f.islandsStart.add(h.isl); if(h.n===6||h.n===8)f.redPips++; });
+    if(v.harbor)f.nearHarbor=true; });
+  f.resources=res.size; f.missing=RES_KEYS.filter(k=>!res.has(k));
+  f.onlySmall=map.islands.length>1&&[...f.islandsStart].every(i=>i>0);
+  return f;
+}
+function missionPool(map,boxes,tierB,ck){
+  const feat=mapFeatures(map); const m={features:feat};
+  return MISSIONS.filter(x=>{ if(x.box==="sf"&&!boxes.sf)return false; if(x.box==="ck"&&!ck)return false; if(x.ck===false&&ck)return false; if(x.tier==="B"&&!tierB)return false; if(x.feas&&!x.feas(m))return false; return true; });
+}
+/* deal: je Spieler 2 Karten (passend zur Startposition, sonst zufällig), möglichst ohne Dopplungen */
+function dealMissions(map,players,starts,opt){
+  const pool=missionPool(map,opt.boxes,opt.tierB,opt.ck);
+  const used=new Set(); const out=[];
+  for(let p=0;p<players;p++){
+    const f=starts&&starts[p]?startFeatures(map,starts[p]):null;
+    let cands=pool.map(mi=>{ let score=f?(mi.fit?mi.fit(f):0):0; if(mi.dyn&&!(f&&f.missing.length))score=-99; score+=rnd(3)/2; if(used.has(mi.id))score-=1.5; return {mi,score}; }).filter(x=>x.score>-50).sort((a,b)=>b.score-a.score);
+    const chosen=cands.slice(0,2).map(x=>{ const mi=Object.assign({},x.mi); if(mi.dyn&&f){ const r=pick(f.missing); mi.text=mi.text.replace("{RES}",TERRAIN[r].res); mi.name+=" ("+TERRAIN[r].res+")"; mi.id+="_"+r; } used.add(x.mi.id); delete mi.fit; delete mi.feas; return mi; });
+    out.push(chosen);
+  }
+  return out;
+}
+
+</script>
+<script>
+"use strict";
+function esc(s){return String(s==null?"":s).replace(/[&<>"]/g,c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;"}[c]));}
+const KEY="catan.v1";
+const PCOL=["#e23b3b","#4aa8ff","#f5d327","#f2f2f2","#3ecf8e","#c57a3a"];
+const PNAMES_DEF=["Rot","Blau","Orange","Weiß","Grün","Braun"];
+let S=null; // {tab, cfg, inv, map, starts, missions, game, archive}
+function load(){ try{const s=localStorage.getItem(KEY); if(s)S=JSON.parse(s);}catch(e){} if(!S){S={tab:"gen",cfg:defaultCfg(),inv:JSON.parse(JSON.stringify(INVENTORY_DEFAULT)),map:null,starts:null,game:null,archive:[]};} if(!S.inv)S.inv=JSON.parse(JSON.stringify(INVENTORY_DEFAULT)); if(!S.archive)S.archive=[]; }
+function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
+function defaultCfg(){ return {boxes:{base:true,base56:false,sf:false,sf56:false,ck:false,ck56:false},players:4,names:["","","",""],layout:"classic",islands:3,deserts:1,gold:2,redAdjacent:false,sameAdjacent:false,hidden:0,smallIslandsRich:true,harborCount:null,startMode:"dice",missionMode:"secret",tierB:false,targetVP:null}; }
+load();
+
+/* ---------- SVG-Karte ---------- */
+function mapSvg(map,starts,opt={}){
+  const size=opt.size||30, w=Math.sqrt(3)*size;
+  const W=w*(map.cols+0.5)+8, H=size*1.5*(map.rows-1)+2*size+8;
+  let s=`<svg class="map" viewBox="0 0 ${W.toFixed(0)} ${H.toFixed(0)}" xmlns="http://www.w3.org/2000/svg">`;
+  const pt=(r,c)=>hexCorners(r,c,size).map(p=>`${(p.x+4).toFixed(1)},${(p.y+4).toFixed(1)}`).join(" ");
+  const ctr=(r,c)=>{const o=hexCenter(r,c,size);return {x:o.x+4,y:o.y+4};};
+  map.cells.forEach(h=>{
+    if(h.t==="void")return;
+    if(h.t==="frame"){ s+=`<polygon points="${pt(h.r,h.c)}" fill="none" stroke="${opt.print?"#bbb":"#223a55"}" stroke-dasharray="3 3" stroke-width="1"/>`; return; }
+    const col=h.hidden&&!opt.revealAll?(opt.print?"#ddd":"#3a4252"):TERRAIN[h.t].c;
+    s+=`<polygon points="${pt(h.r,h.c)}" fill="${col}" stroke="${opt.print?"#333":"#0b1b2e"}" stroke-width="1.5"/>`;
+    const o=ctr(h.r,h.c);
+    if(h.t==="sea"){ if(h.harbor){ const t=map.cells.find(x=>x.r===h.harbor.to.r&&x.c===h.harbor.to.c); const o2=ctr(t.r,t.c); const mx=o.x+(o2.x-o.x)*0.62,my=o.y+(o2.y-o.y)*0.62;
+        s+=`<line x1="${o.x}" y1="${o.y}" x2="${mx}" y2="${my}" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="${o.x}" cy="${o.y}" r="${size*0.42}" fill="#fff" stroke="#333"/><text x="${o.x}" y="${o.y+3.5}" text-anchor="middle" font-size="${size*0.3}" font-weight="700" fill="#111">${esc(h.harbor.type.replace("2:1 ","").slice(0,4)==="3:1"?"3:1":h.harbor.type.replace("2:1 ",""))}</text>`; }
+      if(opt.labels) s+=`<text x="${o.x}" y="${o.y-size*0.55}" text-anchor="middle" font-size="${size*0.26}" fill="${opt.print?"#555":"#7aa0c9"}">${h.label||""}</text>`;
+      return; }
+    // Land
+    if(h.hidden&&!opt.revealAll){ s+=`<text x="${o.x}" y="${o.y+size*0.25}" text-anchor="middle" font-size="${size*0.8}" font-weight="800" fill="${opt.print?"#555":"#9aa7bd"}">?</text>`; }
+    else {
+      const name=h.t==="gold"?"Gold":TERRAIN[h.t].n;
+      s+=`<text x="${o.x}" y="${o.y-size*0.42}" text-anchor="middle" font-size="${size*0.28}" font-weight="700" fill="${h.t==="ore"||h.t==="wood"?"#fff":"#1a1a1a"}" opacity=".9">${name}</text>`;
+      if(h.n){ const red=h.n===6||h.n===8; s+=`<circle cx="${o.x}" cy="${o.y+size*0.12}" r="${size*0.36}" fill="#f6efd8" stroke="#333" stroke-width="1"/><text x="${o.x}" y="${o.y+size*0.12+size*0.14}" text-anchor="middle" font-size="${size*0.4}" font-weight="800" fill="${red?"#c62828":"#111"}">${h.n}</text>`;
+        const pips=PIPS[h.n]; let px=o.x-(pips-1)*size*0.07; for(let k=0;k<pips;k++){ s+=`<circle cx="${px}" cy="${o.y+size*0.12+size*0.27}" r="${size*0.035}" fill="${red?"#c62828":"#111"}"/>`; px+=size*0.14; } }
+    }
+    if(opt.labels) s+=`<text x="${o.x}" y="${o.y+size*0.82}" text-anchor="middle" font-size="${size*0.24}" fill="${h.t==="ore"||h.t==="wood"?"#dde":"#333"}">${h.label||""}</text>`;
+  });
+  if(starts){ starts.forEach((arr,p)=>arr.forEach((v,i)=>{ const x=v.x/10*size+4, y=v.y/10*size+4; s+=`<circle cx="${x}" cy="${y}" r="${size*0.3}" fill="${PCOL[p]}" stroke="#111" stroke-width="1.5"/><text x="${x}" y="${y+size*0.11}" text-anchor="middle" font-size="${size*0.3}" font-weight="800" fill="${p===3||p===2?"#111":"#fff"}">${i+1}</text>`; })); }
+  return s+`</svg>`;
+}
+const legendHtml=(map)=>`<div class="legend">${["wood","sheep","grain","brick","ore","desert"].concat(map.cells.some(c=>c.t==="gold")?["gold"]:[]).map(k=>`<span><i style="background:${TERRAIN[k].c}"></i>${TERRAIN[k].n}${TERRAIN[k].res?" ("+TERRAIN[k].res+")":""}</span>`).join("")}<span><i style="background:#fff"></i>Hafen (Strich zeigt zur Küste)</span>${map.cells.some(c=>c.hidden)?'<span><i style="background:#3a4252"></i>verdeckt (Erkundung)</span>':""}${map.cells.some(c=>c.t==="frame")?'<span><i style="border:1px dashed #889;background:none"></i>Rahmen</span>':""}</div>`;
+
+/* ---------- Generator-Tab ---------- */
+function renderGen(){
+  const C=S.cfg, B=C.boxes;
+  const sf=B.sf;
+  let h=`<div class="box"><div class="sectionTitle first">Material dabei</div><div class="chips">
+    <div class="chip ${B.base?"on":""}" data-bx="base">Grundspiel</div><div class="chip ${B.base56?"on":""}" data-bx="base56">+ 5/6 Spieler</div>
+    <div class="chip ${B.sf?"on":""}" data-bx="sf">Seefahrer</div><div class="chip ${B.sf56?"on":""}" data-bx="sf56">+ Seefahrer 5/6</div>
+    <div class="chip ${B.ck?"on":""}" data-bx="ck">Städte &amp; Ritter</div><div class="chip ${B.ck56?"on":""}" data-bx="ck56">+ S&amp;R 5/6</div></div>
+    <div class="sectionTitle">Spieler</div>
+    <div class="seg">${[3,4,5,6].map(n=>`<button data-pl="${n}" class="${C.players===n?"on":""}" ${n>=5&&!B.base56?"disabled style='opacity:.35'":""}>${n}</button>`).join("")}</div>`;
+  for(let i=0;i<C.players;i++) h+=`<div class="prow"><span class="dot" style="background:${PCOL[i]}"></span><input type="text" maxlength="14" placeholder="${PNAMES_DEF[i]}" value="${esc(C.names[i]||"")}" data-nm="${i}"></div>`;
+  h+=`<div class="sectionTitle">Karte</div>
+    <div class="chips radio">
+      <div class="chip ${C.layout==="classic"?"on":""}" data-lay="classic">Klassische Insel</div>
+      ${sf?`<div class="chip ${C.layout==="main"?"on":""}" data-lay="main">Hauptinsel + Nebeninseln</div><div class="chip ${C.layout==="equal"?"on":""}" data-lay="equal">Gleich große Inseln</div><div class="chip ${C.layout==="archipel"?"on":""}" data-lay="archipel">Archipel (viele kleine)</div>`:""}
+    </div>`;
+  if(!sf) h+=`<div class="hint">Insel-Layouts erscheinen, sobald „Seefahrer“ angehakt ist.</div>`;
+  if(sf&&C.layout!=="classic") h+=`<div class="row" style="margin-top:10px">
+      ${C.layout!=="archipel"?`<div class="grow"><label class="fld">${C.layout==="main"?"Nebeninseln":"Inseln"}</label><select data-c="islands">${[2,3,4,5,6].map(n=>`<option value="${n}" ${C.islands===n?"selected":""}>${n}</option>`).join("")}</select></div>`:""}
+      <div class="grow"><label class="fld">Goldfelder</label><select data-c="gold">${[0,1,2,3].map(n=>`<option value="${n}" ${C.gold===n?"selected":""}>${n}</option>`).join("")}</select></div>
+      <div class="grow"><label class="fld">Verdeckte Felder</label><select data-c="hidden">${[0,2,4,6,8].map(n=>`<option value="${n}" ${C.hidden===n?"selected":""}>${n===0?"keine":n}</option>`).join("")}</select></div>
+    </div>
+    <div class="chips" style="margin-top:8px"><div class="chip ${C.smallIslandsRich?"on":""}" data-t="smallIslandsRich">Nebeninseln bekommen starke Zahlen</div></div>`;
+  h+=`<div class="row" style="margin-top:10px">
+      <div class="grow"><label class="fld">Wüsten</label><select data-c="deserts">${[0,1,2,3].map(n=>`<option value="${n}" ${C.deserts===n?"selected":""}>${n}</option>`).join("")}</select></div>
+      <div class="grow"><label class="fld">Häfen</label><select data-c="harborCount"><option value="" ${C.harborCount==null?"selected":""}>automatisch</option>${[6,7,8,9,10,11,12,13,14].map(n=>`<option value="${n}" ${C.harborCount===n?"selected":""}>${n}</option>`).join("")}</select></div>
+    </div>
+    <div class="sectionTitle">Zahlenchips</div><div class="chips">
+      <div class="chip ${!C.redAdjacent?"on":""}" data-t2="redAdjacent">6 und 8 nie nebeneinander (auch 6–6, 8–8)</div>
+      <div class="chip ${!C.sameAdjacent?"on":""}" data-t2="sameAdjacent">Gleiche Zahlen nie nebeneinander</div></div>
+    <div class="sectionTitle">Startaufstellung</div>
+    <div class="seg"><button data-sm="dice" class="${C.startMode==="dice"?"on":""}">Klassisch am Tisch</button><button data-sm="given" class="${C.startMode==="given"?"on":""}">Vorgegeben (ausgeglichen)</button></div>
+    <div class="sectionTitle">Siegbedingungen</div>
+    <div class="chips radio">
+      <div class="chip ${C.missionMode==="none"?"on":""}" data-mm="none">Nur Siegpunkte</div>
+      <div class="chip ${C.missionMode==="secret"?"on":""}" data-mm="secret">Geheime Missionen</div>
+      <div class="chip ${C.missionMode==="open"?"on":""}" data-mm="open">Offene Erfolge</div>
+      <div class="chip ${C.missionMode==="must"?"on":""}" data-mm="must">Pflichtmission (Experten)</div></div>
+    ${C.missionMode!=="none"?`<div class="chips" style="margin-top:8px"><div class="chip ${C.tierB?"on":""}" data-t="tierB">Schwere Missionen (3 SP) zulassen</div></div>`:""}
+    <div class="hint">${{none:"Klassisch: Wer zuerst das Siegpunktziel erreicht, gewinnt.",secret:"Jeder zieht 2 Missionen und behält 1 (geheim). Erfüllt = Bonus-SP, Ziel +2.",open:"3 Missionen liegen offen; wer sie zuerst erfüllt, bekommt die SP. Ziel +2.",must:"Sieg nur mit erfüllter Mission bei Ziel −1 SP. Nur leichte Missionen, 2 ziehen 1 behalten."}[C.missionMode]}</div>
+    <button class="act" id="btnGen">🎲 Spielplan erzeugen</button></div>`;
+  if(S.map) h+=renderMapBox();
+  return h;
+}
+function targetVP(){ const C=S.cfg; let t=C.boxes.ck?13:10; if(S.map&&S.map.islands&&S.map.islands.length>1)t+=2; if(C.missionMode==="secret"||C.missionMode==="open")t+=2; if(C.missionMode==="must")t-=1; return C.targetVP||t; }
+function renderMapBox(){
+  const m=S.map, C=S.cfg;
+  let h=`<div class="box"><div class="row" style="justify-content:space-between;align-items:center"><div class="sectionTitle first" style="margin:0">Spielplan · ${m.inv.landUsed} Land · ${m.inv.seaUsed} Meer · ${m.inv.harbors} Häfen${m.islands.length>1?" · "+m.islands.length+" Inseln":""}</div>
+    <div class="row"><button class="mini ${S.showLabels?"on":""}" id="btnLabels">Koordinaten</button>${m.cells.some(c=>c.hidden)?`<button class="mini ${S.reveal?"on":""}" id="btnReveal">verdeckte zeigen</button>`:""}</div></div>
+    <div class="mapwrap">${mapSvg(m,S.starts,{labels:S.showLabels,revealAll:S.reveal})}</div>${legendHtml(m)}
+    ${m.warn.length?`<div class="warn">⚠️ ${m.warn.map(esc).join("<br>")}</div>`:""}
+    ${m.hiddenStack.length?`<div class="hint">Chips für verdeckte Felder (verdeckt stapeln, beim Aufdecken oben nehmen): <b>${m.hiddenStack.join(", ")}</b></div>`:""}`;
+  if(S.starts){
+    h+=`<div class="sectionTitle">Startpositionen (ausgeglichen nach Ertrag)</div><div class="startlist">`;
+    S.starts.forEach((arr,p)=>{ const nm=S.cfg.names[p]||PNAMES_DEF[p]; h+=`<div class="st" style="--pc:${PCOL[p]}"><b>${esc(nm)} · ${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt</b>${arr.map((v,i)=>`<span>${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":(x.hidden?"?":(TERRAIN[x.t].n+(x.n?" "+x.n:"")))+(S.showLabels&&x.label?" ["+x.label+"]":"")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}</span>`).join("")}</div>`; });
+    h+=`</div><div class="hint">Reihenfolge: Spieler 1 setzt Siedlung 1 zuerst; zweite Siedlung in umgekehrter Reihenfolge. Straßen frei wählen.</div>`;
+  }
+  h+=`<div class="row"><button class="act sec" id="btnRegen" style="flex:1">🎲 Neu würfeln</button><button class="act sec" id="btnSave" style="flex:1">💾 Karte speichern</button><button class="act sec" id="btnPrintMap" style="flex:1">🖨️ Drucken / PDF</button></div>
+    <button class="act good" id="btnStartGame">▶ Partie mit dieser Karte starten</button></div>`;
+  return h;
+}
+function doGenerate(){
+  const C=S.cfg; const cfg=Object.assign({},C,{inv:S.inv,harborCount:C.harborCount||null});
+  if(!C.boxes.sf) cfg.layout="classic";
+  if(cfg.layout==="classic"&&C.players>=5&&C.deserts<2) cfg.deserts=2;
+  try{ S.map=generate(cfg); }catch(e){ alert("Fehler bei der Erzeugung: "+e.message); return; }
+  S.starts=C.startMode==="given"?startPositions(S.map,C.players):null;
+  S.reveal=false; save(); render();
+}
+function bindGen(){
+  const C=S.cfg; const rr=()=>{save();render();};
+  document.querySelectorAll("[data-bx]").forEach(c=>c.onclick=()=>{ const k=c.dataset.bx; C.boxes[k]=!C.boxes[k]; if(k==="base"&&!C.boxes.base)C.boxes.base56=false; if(k==="sf"&&!C.boxes.sf){C.boxes.sf56=false;C.layout="classic";} if(k==="ck"&&!C.boxes.ck)C.boxes.ck56=false; if(!C.boxes.base56&&C.players>4)C.players=4; rr(); });
+  document.querySelectorAll("[data-pl]").forEach(b=>b.onclick=()=>{ C.players=+b.dataset.pl; while(C.names.length<C.players)C.names.push(""); if(C.layout==="classic")C.deserts=C.players>=5?2:1; rr(); });
+  document.querySelectorAll("[data-nm]").forEach(i=>i.oninput=()=>{C.names[+i.dataset.nm]=i.value;save();});
+  document.querySelectorAll("[data-lay]").forEach(c=>c.onclick=()=>{C.layout=c.dataset.lay;rr();});
+  document.querySelectorAll("[data-c]").forEach(el=>el.onchange=()=>{ const k=el.dataset.c; C[k]=el.value===""?null:parseInt(el.value,10); save(); });
+  document.querySelectorAll("[data-t]").forEach(c=>c.onclick=()=>{C[c.dataset.t]=!C[c.dataset.t];rr();});
+  document.querySelectorAll("[data-t2]").forEach(c=>c.onclick=()=>{C[c.dataset.t2]=!C[c.dataset.t2];rr();});
+  document.querySelectorAll("[data-sm]").forEach(b=>b.onclick=()=>{C.startMode=b.dataset.sm; if(S.map){S.starts=C.startMode==="given"?startPositions(S.map,C.players):null;} rr();});
+  document.querySelectorAll("[data-mm]").forEach(c=>c.onclick=()=>{C.missionMode=c.dataset.mm;rr();});
+  const q=id=>document.getElementById(id);
+  q("btnGen").onclick=doGenerate;
+  if(q("btnRegen")) q("btnRegen").onclick=doGenerate;
+  if(q("btnLabels")) q("btnLabels").onclick=()=>{S.showLabels=!S.showLabels;rr();};
+  if(q("btnReveal")) q("btnReveal").onclick=()=>{S.reveal=!S.reveal;rr();};
+  if(q("btnSave")) q("btnSave").onclick=()=>{ const name=prompt("Name für die Karte:",`${S.map.islands.length>1?"Inselwelt":"Insel"} ${C.players} Sp. · ${new Date().toLocaleDateString("de-DE")}`); if(!name)return; S.archive.unshift({name,date:new Date().toISOString(),map:S.map,starts:S.starts,cfg:JSON.parse(JSON.stringify(C))}); save(); alert("Gespeichert – siehe Tab „Karten“."); };
+  if(q("btnPrintMap")) q("btnPrintMap").onclick=()=>printAll({map:true});
+  if(q("btnStartGame")) q("btnStartGame").onclick=startGame;
+}
+
+/* ---------- Partie ---------- */
+function startGame(){
+  const C=S.cfg; if(S.game&&S.game.log&&!confirm("Laufende Partie ersetzen?"))return;
+  const names=C.names.slice(0,C.players).map((n,i)=>n.trim()||PNAMES_DEF[i]);
+  const ck=C.boxes.ck;
+  const players=names.map((n,i)=>({name:n,col:PCOL[i],settle:2,city:0,devVP:0,chips:0,metro:0,defender:0,longest:false,army:false,missions:[],missionDone:[]}));
+  let dealt=null, open=null;
+  if(C.missionMode==="secret"||C.missionMode==="must"){ dealt=dealMissions(S.map,C.players,S.starts,{boxes:C.boxes,tierB:C.missionMode==="must"?false:C.tierB,ck}); players.forEach((p,i)=>{p.missions=dealt[i];p.keep=null;p.missionDone=[];}); }
+  if(C.missionMode==="open"){ const pool=shuffle(missionPool(S.map,C.boxes,C.tierB,ck)); open=pool.slice(0,3).map(m=>({id:m.id,name:m.name,text:m.text,vp:m.vp,end:!!m.end,by:null})); }
+  S.game={players,open,mode:C.missionMode,ck,target:targetVP(),startedAt:new Date().toISOString(),log:0};
+  S.tab="game"; save(); render();
+}
+function vpOf(p,g){ let v=p.settle+2*p.city+p.devVP+p.chips+(p.longest?2:0)+(p.army&&!g.ck?2:0)+(g.ck?2*p.metro+p.defender:0); if(g.mode==="secret"||g.mode==="must"){ if(p.keep!=null&&p.missionDone[p.keep]) v+=p.missions[p.keep].vp; } if(g.open) g.open.forEach(m=>{ if(m.by===g.players.indexOf(p)) v+=m.vp; }); return v; }
+function renderGame(){
+  const g=S.game; if(!g) return `<div class="box"><div class="hint">Noch keine Partie. Erzeuge im Generator einen Spielplan und starte die Partie von dort.</div></div>`;
+  const C=S.cfg;
+  let h=`<div class="box"><div class="target"><span>Siegpunktziel${g.mode==="must"?" (+ erfüllte Pflichtmission)":""}</span><span><button class="mini" data-tg="-1">−</button> <b>${g.target}</b> <button class="mini" data-tg="1">+</button></span></div>`;
+  if(g.open){ h+=`<div class="sectionTitle">Offene Erfolge – wer zuerst erfüllt, bekommt die SP</div>`; g.open.forEach((m,i)=>{ h+=`<div class="mcard ${m.by!=null?"done":""}"><span class="vp">${m.vp} SP</span><b>${esc(m.name)}</b><p>${esc(m.text)}</p><div class="row" style="margin-top:6px">${m.by!=null?`<span class="hint" style="margin:0">Erfüllt von <b style="color:${g.players[m.by].col}">${esc(g.players[m.by].name)}</b></span><button class="mini" data-oclr="${i}">zurücknehmen</button>`:g.players.map((p,pi)=>`<button class="mini" data-oby="${i}:${pi}" style="border-color:${p.col}">${esc(p.name)}</button>`).join("")}</div></div>`; }); }
+  g.players.forEach((p,pi)=>{
+    const vp=vpOf(p,g); const win=vp>=g.target&&(g.mode!=="must"||(p.keep!=null&&p.missionDone[p.keep]));
+    h+=`<div class="pl ${win?"win":""}" style="--pc:${p.col}"><div class="head"><b>${esc(p.name)}${win?" 🏆":""}</b><span class="tot">${vp}</span></div><div class="cnt">
+      ${[["settle","Siedlungen",1,5],["city","Städte",2,4],["devVP","SP-Karten",1,9],["chips","Catan-Chips (SP)",1,20]].filter(x=>x[0]!=="chips"||C.boxes.sf).map(([k,l])=>`<div class="c"><span>${l}</span><button data-dec="${pi}:${k}">−</button><b>${p[k]}</b><button data-inc="${pi}:${k}">+</button></div>`).join("")}
+      ${g.ck?`<div class="c"><span>Metropolen (2 SP)</span><button data-dec="${pi}:metro">−</button><b>${p.metro}</b><button data-inc="${pi}:metro">+</button></div><div class="c"><span>Verteidiger (1 SP)</span><button data-dec="${pi}:defender">−</button><b>${p.defender}</b><button data-inc="${pi}:defender">+</button></div>`:""}
+      <div class="tog ${p.longest?"on":""}" data-lg="${pi}">Längste Handelsstraße (2)</div>
+      ${!g.ck?`<div class="tog ${p.army?"on":""}" data-ar="${pi}">Größte Rittermacht (2)</div>`:""}
+    </div>`;
+    if(g.mode==="secret"||g.mode==="must"){
+      if(p.keep==null){ h+=`<div class="sectionTitle">Mission wählen (nur ${esc(p.name)} schaut hin) – 2 ziehen, 1 behalten</div>${p.missions.map((m,mi)=>`<div class="mcard ${p.show?"":"hidden"}"><span class="vp">${m.vp} SP</span><b>${esc(m.name)}</b><p>${esc(m.text)}</p>${p.show?`<button class="mini" data-keep="${pi}:${mi}" style="margin-top:6px">Diese behalten</button>`:""}</div>`).join("")}<button class="mini" data-show="${pi}" style="margin-top:6px">${p.show?"🙈 verbergen":"👁️ Karten anzeigen"}</button>`; }
+      else { const m=p.missions[p.keep]; const done=!!p.missionDone[p.keep]; h+=`<div class="mcard ${done?"done":(p.show?"":"hidden")}"><span class="vp">${m.vp} SP</span><span class="tag">${done?"Mission erfüllt – aufgedeckt":"geheime Mission"}</span><b>${esc(m.name)}</b><p>${esc(m.text)}</p><div class="row" style="margin-top:6px">${done?`<button class="mini" data-undone="${pi}">zurücknehmen</button>`:`<button class="mini" data-show="${pi}">${p.show?"🙈 verbergen":"👁️ anzeigen"}</button><button class="mini" data-done="${pi}" style="border-color:var(--green);color:var(--green)">✔ erfüllt – aufdecken</button>`}</div></div>`; }
+    }
+    h+=`</div>`;
+  });
+  h+=`<div class="row" style="margin-top:12px"><button class="mini" id="btnPrintGame" style="flex:1">🖨️ Missionskarten & Regeln drucken</button><button class="mini" id="btnEndGame" style="flex:1;color:var(--red2)">🏁 Partie beenden</button></div></div>`;
+  return h;
+}
+function bindGame(){
+  const g=S.game; if(!g)return; const rr=()=>{save();render();};
+  const caps={settle:5,city:4,devVP:9,chips:30,metro:3,defender:9};
+  document.querySelectorAll("[data-inc]").forEach(b=>b.onclick=()=>{const [pi,k]=b.dataset.inc.split(":"); const p=g.players[pi]; if(p[k]<caps[k])p[k]++; rr();});
+  document.querySelectorAll("[data-dec]").forEach(b=>b.onclick=()=>{const [pi,k]=b.dataset.dec.split(":"); const p=g.players[pi]; if(p[k]>0)p[k]--; rr();});
+  document.querySelectorAll("[data-lg]").forEach(b=>b.onclick=()=>{const pi=+b.dataset.lg; const was=g.players[pi].longest; g.players.forEach(p=>p.longest=false); g.players[pi].longest=!was; rr();});
+  document.querySelectorAll("[data-ar]").forEach(b=>b.onclick=()=>{const pi=+b.dataset.ar; const was=g.players[pi].army; g.players.forEach(p=>p.army=false); g.players[pi].army=!was; rr();});
+  document.querySelectorAll("[data-tg]").forEach(b=>b.onclick=()=>{g.target=Math.max(3,g.target+(+b.dataset.tg));rr();});
+  document.querySelectorAll("[data-show]").forEach(b=>b.onclick=()=>{const p=g.players[+b.dataset.show]; p.show=!p.show; rr();});
+  document.querySelectorAll("[data-keep]").forEach(b=>b.onclick=()=>{const [pi,mi]=b.dataset.keep.split(":").map(Number); const p=g.players[pi]; p.keep=mi; p.show=false; rr();});
+  document.querySelectorAll("[data-done]").forEach(b=>b.onclick=()=>{const p=g.players[+b.dataset.done]; if(confirm(`${p.name}: Mission „${p.missions[p.keep].name}“ als erfüllt aufdecken?`)){p.missionDone[p.keep]=true;p.show=true;rr();}});
+  document.querySelectorAll("[data-undone]").forEach(b=>b.onclick=()=>{const p=g.players[+b.dataset.undone]; p.missionDone[p.keep]=false; p.show=false; rr();});
+  document.querySelectorAll("[data-oby]").forEach(b=>b.onclick=()=>{const [i,pi]=b.dataset.oby.split(":").map(Number); g.open[i].by=pi; rr();});
+  document.querySelectorAll("[data-oclr]").forEach(b=>b.onclick=()=>{g.open[+b.dataset.oclr].by=null;rr();});
+  const q=id=>document.getElementById(id);
+  if(q("btnPrintGame")) q("btnPrintGame").onclick=()=>printAll({missions:true,rules:true});
+  if(q("btnEndGame")) q("btnEndGame").onclick=()=>{ if(confirm("Partie beenden? Der Siegpunktstand wird gelöscht.")){S.game=null;rr();} };
+}
+
+/* ---------- Archiv ---------- */
+function renderArch(){
+  if(!S.archive.length) return `<div class="box"><div class="hint">Noch keine Karte gespeichert. Im Generator unter der Karte auf „Karte speichern“ tippen.</div></div>`;
+  return `<div class="box">${S.archive.map((a,i)=>`<div class="mcard"><b>${esc(a.name)}</b><p>${new Date(a.date).toLocaleDateString("de-DE")} · ${a.cfg.players} Spieler · ${a.map.inv.landUsed} Land${a.map.islands.length>1?" · "+a.map.islands.length+" Inseln":""}${a.starts?" · mit Startpositionen":""}</p>
+    <div class="row" style="margin-top:6px"><button class="mini" data-load="${i}">📂 Laden</button><button class="mini" data-adel="${i}" style="color:var(--red2)">🗑</button></div></div>`).join("")}</div>`;
+}
+function bindArch(){
+  document.querySelectorAll("[data-load]").forEach(b=>b.onclick=()=>{ const a=S.archive[+b.dataset.load]; S.map=JSON.parse(JSON.stringify(a.map)); S.starts=a.starts?JSON.parse(JSON.stringify(a.starts)):null; S.cfg=Object.assign(S.cfg,JSON.parse(JSON.stringify(a.cfg))); S.tab="gen"; save(); render(); });
+  document.querySelectorAll("[data-adel]").forEach(b=>b.onclick=()=>{ if(confirm("Karte löschen?")){S.archive.splice(+b.dataset.adel,1);save();render();} });
+}
+
+/* ---------- Material ---------- */
+function renderInv(){
+  const names={base:"Grundspiel (1995)",base56:"Ergänzung 5/6 Spieler (1996)",sf:"Seefahrer (1997)",sf56:"Seefahrer-Ergänzung 5/6"};
+  const landN={wood:"Wald",sheep:"Weide",grain:"Acker",brick:"Hügel",ore:"Gebirge",desert:"Wüste",gold:"Gold"};
+  let h=`<div class="box"><div class="hint" style="margin-top:0">Stückzahlen deiner Kartons (1. Edition). Der Generator verwendet nie mehr Felder, Chips oder Häfen, als hier stehen. Werte stammen aus Rechercheangaben – bitte einmal nachzählen, besonders bei der Seefahrer-Ergänzung.</div>`;
+  Object.keys(names).forEach(k=>{ const b=S.inv[k]; h+=`<div class="invbox"><h4>${names[k]}</h4><div class="inv">
+    ${Object.keys(landN).map(t=>`<div><label>${landN[t]}</label><input type="number" min="0" value="${b.land[t]||0}" data-inv="${k}.land.${t}"></div>`).join("")}
+    <div><label>Meerfelder ohne Hafen</label><input type="number" min="0" value="${b.sea||0}" data-inv="${k}.sea"></div>
+    ${b.harborSea?`<div><label>Meerfelder Hafen 3:1</label><input type="number" min="0" value="${b.harborSea.generic}" data-inv="${k}.harborSea.generic"></div><div><label>Meerfelder Hafen 2:1</label><input type="number" min="0" value="${b.harborSea.specific}" data-inv="${k}.harborSea.specific"></div>`:""}
+    ${b.harborTok?`<div><label>Hafenplättchen 3:1</label><input type="number" min="0" value="${b.harborTok.generic}" data-inv="${k}.harborTok.generic"></div><div><label>Hafenplättchen 2:1</label><input type="number" min="0" value="${b.harborTok.specific}" data-inv="${k}.harborTok.specific"></div>`:""}
+    <div style="grid-column:1/-1"><label>Zahlenchips (kommagetrennt)</label><input type="text" value="${(b.tokens||[]).join(",")}" data-tok="${k}"></div>
+    </div></div>`; });
+  h+=`<button class="act sec" id="btnInvReset">↺ Auf Rechercheangaben zurücksetzen</button></div>`;
+  return h;
+}
+function bindInv(){
+  document.querySelectorAll("[data-inv]").forEach(i=>i.onchange=()=>{ const path=i.dataset.inv.split("."); let o=S.inv; for(let k=0;k<path.length-1;k++)o=o[path[k]]; o[path[path.length-1]]=parseInt(i.value,10)||0; save(); });
+  document.querySelectorAll("[data-tok]").forEach(i=>i.onchange=()=>{ S.inv[i.dataset.tok].tokens=i.value.split(",").map(x=>parseInt(x.trim(),10)).filter(x=>x>=2&&x<=12&&x!==7); save(); });
+  document.getElementById("btnInvReset").onclick=()=>{ if(confirm("Inventar zurücksetzen?")){S.inv=JSON.parse(JSON.stringify(INVENTORY_DEFAULT));save();render();} };
+}
+
+/* ---------- Druck ---------- */
+function rulesHtml(){
+  return `<div class="rules">
+  <h4>Grundidee</h4><p>Missionen sind Zusatzziele, die beim Erfüllen Bonus-Siegpunkte bringen. Das Siegpunktziel steigt dafür um 2. Alles andere läuft nach den normalen Catan-Regeln (inkl. Seefahrer / Städte &amp; Ritter, wenn mitgespielt).</p>
+  <h4>Geheime Missionen (Standard)</h4><p>Jeder Spieler erhält zu Beginn 2 Missionskarten, sieht sie sich verdeckt an und behält eine; die andere kommt ungesehen zurück. Erfüllt ein Spieler seine Mission, deckt er sie in seinem Zug auf und erhält die aufgedruckten Siegpunkte dauerhaft. Erfüllbarkeit wird nur im Moment des Aufdeckens geprüft; einmal gutgeschriebene Punkte bleiben.</p>
+  <h4>Offene Erfolge</h4><p>Drei Missionskarten liegen offen aus. Wer eine zuerst erfüllt, nimmt die Karte und ihre Siegpunkte – sie kann nicht mehr verloren gehen.</p>
+  <h4>Pflichtmission (Experten)</h4><p>Wie geheime Missionen, aber: Ein Spieler gewinnt erst, wenn er sein Siegpunktziel (−1 gegenüber normal) erreicht <i>und</i> seine Mission erfüllt hat. Nur leichte Missionen (2 SP).</p>
+  <h4>Endbedingungen</h4><p>Missionen mit dem Hinweis „Endbedingung“ beschreiben einen Zustand statt eines Ereignisses (z. B. „keines deiner Gebäude grenzt an 6 oder 8“). Sie werden erst beim Siegeszug geprüft und zählen nur, wenn der Zustand dann gilt.</p>
+  <h4>Begriffe</h4><p><b>Gebäude</b> = Siedlung oder Stadt. <b>Grenzt ans Meer</b> = die Kreuzung berührt ein Meerfeld oder den Rahmen. <b>Insel</b> = zusammenhängende Landfläche. <b>Alleinherrscher</b>: Wegen der Abstandsregel gibt es an jedem Feld höchstens drei bebaubare Ecken – alle drei gehören dir. <b>Hafenpunkte</b>: Siedlung am Hafen 1, Stadt am Hafen 2.</p>
+  <h4>Startpositionen (optional)</h4><p>Die App schlägt ausgeglichene Startplätze vor (Summe der Würfelwahrscheinlichkeiten und Rohstoffvielfalt). Spieler 1 setzt Siedlung 1 zuerst, danach reihum; die zweite Siedlung in umgekehrter Reihenfolge. Straßen bzw. Schiffe werden frei angelegt. Bei Städte &amp; Ritter ist die zweite Siedlung wie gewohnt eine Stadt.</p>
+  <h4>Siegpunktziel</h4><p>Grundspiel 10 · Städte &amp; Ritter 13 · Inselkarten +2 · Missionen (geheim/offen) +2 · Pflichtmission −1. Das Ziel ist im Tracker jederzeit anpassbar.</p>
+  <h4>Verdeckte Felder</h4><p>Verdeckte Landfelder werden mit der Rückseite nach oben gelegt, ihre Zahlenchips gemischt als verdeckter Stapel bereitgelegt. Wer mit Straße oder Schiff erstmals eine Ecke eines verdeckten Felds erreicht, deckt es auf, legt den obersten Chip darauf und erhält einen Rohstoff dieses Felds.</p>
+  </div>`;
+}
+function printAll(opt){
+  const m=S.map, C=S.cfg; let h="";
+  if(opt.map&&m){
+    h+=`<div class="page"><h2>Catan – Spielplan</h2><div class="meta">${new Date().toLocaleDateString("de-DE")} · ${C.players} Spieler · ${m.inv.landUsed} Landfelder, ${m.inv.seaUsed} Meerfelder, ${m.inv.harbors} Häfen${m.islands.length>1?" · "+m.islands.length+" Inseln":""} · 6/8 ${C.redAdjacent?"dürfen":"nie"} benachbart</div>
+      ${mapSvg(m,S.starts,{labels:true,print:true,size:30})}${legendHtml(m)}
+      ${m.hiddenStack.length?`<h3>Verdeckte Felder</h3><div class="meta">Chips gemischt als Stapel: ${m.hiddenStack.join(", ")} – Felder mit „?“ mit Rückseite nach oben legen.</div>`:""}`;
+    if(S.starts){ h+=`<h3>Startpositionen</h3><div class="sl">${S.starts.map((arr,p)=>`<div><b style="color:${PCOL[p]}">●</b> <b>${esc(C.names[p]||PNAMES_DEF[p])}</b> (${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt)<br>${arr.map((v,i)=>`${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":((x.hidden?"?":TERRAIN[x.t].n+(x.n?" "+x.n:""))+" ["+x.label+"]")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}`).join("<br>")}</div>`).join("")}</div>`; }
+    h+=`</div>`;
+  }
+  const g=S.game;
+  if(opt.missions&&g&&(g.mode==="secret"||g.mode==="must")){
+    h+=`<div class="page"><h2>Missionskarten – ausschneiden, jeder bekommt seine zwei verdeckt</h2><div class="meta">Jeder Spieler schaut nur seine eigenen Karten an, behält eine und gibt die andere ungesehen zurück. Erfüllt = aufdecken, Siegpunkte dauerhaft.</div><div class="cards">`;
+    g.players.forEach(p=>p.missions.forEach(mi=>{ h+=`<div class="pc"><span class="vp">${mi.vp}</span><span class="who">Für ${esc(p.name)}</span><b>${esc(mi.name)}</b><p>${esc(mi.text)}</p></div>`; }));
+    h+=`</div></div>`;
+  }
+  if(opt.missions&&g&&g.mode==="open"){ h+=`<div class="page"><h2>Offene Erfolge</h2><div class="cards">${g.open.map(mi=>`<div class="pc"><span class="vp">${mi.vp}</span><b>${esc(mi.name)}</b><p>${esc(mi.text)}</p></div>`).join("")}</div></div>`; }
+  if(opt.rules){ h+=`<div class="page"><h2>Catan-Hausregeln: Missionen &amp; Startpositionen</h2>${rulesHtml()}</div>`; }
+  document.getElementById("print").innerHTML=h; window.print();
+}
+
+/* ---------- Render ---------- */
+function render(){
+  document.querySelectorAll(".tab").forEach(t=>t.classList.toggle("active",t.dataset.tab===S.tab));
+  const app=document.getElementById("app");
+  app.innerHTML=S.tab==="gen"?renderGen():S.tab==="game"?renderGame():S.tab==="arch"?renderArch():renderInv();
+  if(S.tab==="gen")bindGen(); else if(S.tab==="game")bindGame(); else if(S.tab==="arch")bindArch(); else bindInv();
+}
+document.querySelectorAll(".tab").forEach(t=>t.onclick=()=>{S.tab=t.dataset.tab;save();render();});
+render();
+</script>
+</body>
+</html>
