@@ -492,7 +492,10 @@ function applyHidden(map,mode,starts){
 function boardFromMap(map){ const B=new Board(map.rows,map.cols); map.cells.forEach(c=>B.set(c.r,c.c,{t:c.t,n:c.n,harbor:c.harbor,hidden:c.hidden,isl:c.isl,label:c.label})); return B; }
 function vertexValue(v){ let pips=0; const res=new Set(); v.land.forEach(h=>{ if(h.n){pips+=PIPS[h.n]; if(h.t!=="desert")res.add(h.t);} }); return pips+res.size*0.6+(v.land.length===3?0.5:0); }
 function startPositions(map,players,opt){
-  opt=opt||{}; const B=boardFromMap(map); const V=[...B.vertices().values()].filter(v=>v.land.length>0&&v.land.some(h=>h.t!=="desert"));
+  opt=opt||{}; const B=boardFromMap(map);
+  // Startecken: mindestens ein Rohstofffeld, und KEIN angrenzendes verdecktes Feld (Land oder Meer)
+  const V=[...B.vertices().values()].filter(v=>v.land.length>0&&v.land.some(h=>h.t!=="desert")&&!v.hexes.some(h=>h.hidden));
+  const warn=opt.warn||[];
   V.forEach(v=>v.val=vertexValue(v));
   const hexAt=(r,c)=>B.get(r,c);
   map.cells.filter(c=>c.harbor).forEach(c=>{ const h=hexAt(c.r,c.c), t=hexAt(c.harbor.to.r,c.harbor.to.c); const ck=x=>hexCorners(x.r,x.c,10).map(p=>Math.round(p.x*10)+"_"+Math.round(p.y*10)); const ch=ck(h),ct=ck(t); ch.filter(k=>ct.includes(k)).forEach(k=>{const v=B.vertices().get(k); if(v){v.harbor=c.harbor.type;v.val+=0.8;}}); });
@@ -517,6 +520,10 @@ function startPositions(map,players,opt){
     picks[p].push(best||cur); if(!best)break;
   }
   }
+  // Prüfung: vollständig? ausgeglichen?
+  const missing=picks.filter(a=>a.length<2).length;
+  if(missing) warn.push(`Keine vollständigen Startpositionen möglich: ${missing} Spieler ohne zweiten (oder ersten) Startplatz – zu wenige offene, erlaubte Ecken. Weniger verdeckte Felder wählen oder Startmodus „am Tisch“.`);
+  if(!opt.random&&!missing){ const t=picks.map(a=>a.reduce((x,v)=>x+v.val,0)); const spread=Math.max(...t)-Math.min(...t); if(spread>3) warn.push(`Startpositionen nicht ausgleichbar: Spanne ${spread.toFixed(1)} Punkte (Ziel ≤ 3). Neu würfeln oder weniger verdeckte Felder.`); }
   return picks.map(arr=>arr.map(v=>({id:v.id,x:v.x,y:v.y,val:Math.round(v.val*10)/10,hexes:v.hexes.map(h=>({label:h.label,t:h.t,n:h.n,isl:h.isl,r:h.r,c:h.c})),harbor:v.harbor||null})));
 }
 
@@ -693,11 +700,11 @@ function renderMapBox(){
   let h=`<div class="box"><div class="row" style="justify-content:space-between;align-items:center"><div class="sectionTitle first" style="margin:0">Spielplan · ${m.inv.landUsed} Land · ${m.inv.seaUsed} Meer · ${m.inv.harbors} Häfen${m.islands.length>1?" · "+m.islands.length+" Inseln":""}</div>
     <div class="row"><button class="mini ${S.showLabels?"on":""}" id="btnLabels">Koordinaten</button>${m.cells.some(c=>c.hidden)?`<button class="mini ${S.reveal?"on":""}" id="btnReveal">verdeckte zeigen</button>`:""}</div></div>
     <div class="mapwrap">${mapSvg(m,S.starts,{labels:S.showLabels,revealAll:S.reveal})}</div>${legendHtml(m)}
-    ${m.warn.length?`<div class="warn">⚠️ ${m.warn.map(esc).join("<br>")}</div>`:""}
+    ${m.warn.length?`<div class="warn" style="${m.warn.some(w=>/Startposition/.test(w))?"border:1px solid var(--red2);border-radius:10px;padding:8px 10px;color:var(--red2)":""}">⚠️ ${m.warn.map(esc).join("<br>")}</div>`:""}
     ${m.hiddenStack.length?`<div class="hint">Chips für verdeckte Felder (verdeckt stapeln, beim Aufdecken oben nehmen): <b>${m.hiddenStack.join(", ")}</b></div>`:""}`;
   if(S.starts){
     h+=`<div class="sectionTitle">Startpositionen ${S.cfg.startMode==="random"?"(zufällig)":"(ausgeglichen nach Ertrag)"}</div><div class="startlist">`;
-    S.starts.forEach((arr,p)=>{ const nm=S.cfg.names[p]||PNAMES_DEF[p]; h+=`<div class="st" style="--pc:${PCOL[p]}"><b>${esc(nm)} · ${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt</b>${arr.map((v,i)=>`<span>${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":(TERRAIN[x.t].n+(x.n?" "+x.n:""))+(S.showLabels&&x.label?" ["+x.label+"]":"")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}</span>`).join("")}</div>`; });
+    S.starts.forEach((arr,p)=>{ const nm=S.cfg.names[p]||PNAMES_DEF[p]; h+=`<div class="st" style="--pc:${PCOL[p]}${arr.length<2?";border-color:var(--red2)":""}"><b>${esc(nm)} · ${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt${arr.length<2?" · ⚠️ nur "+arr.length+" Platz":""}</b>${arr.map((v,i)=>`<span>${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":(TERRAIN[x.t].n+(x.n?" "+x.n:""))+(S.showLabels&&x.label?" ["+x.label+"]":"")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}</span>`).join("")}</div>`; });
     h+=`</div><div class="hint">Reihenfolge: Spieler 1 setzt Siedlung 1 zuerst; zweite Siedlung in umgekehrter Reihenfolge. Straßen frei wählen.</div>`;
   }
   h+=`<div class="row"><button class="act sec" id="btnRegen" style="flex:1">🎲 Neu würfeln</button><button class="act sec" id="btnSave" style="flex:1">💾 Karte speichern</button><button class="act sec" id="btnPrintMap" style="flex:1">🖨️ Drucken / PDF</button></div>
@@ -706,6 +713,7 @@ function renderMapBox(){
 }
 function computeStarts(){
   const C=S.cfg; if(!S.map||C.startMode==="dice"){S.starts=null;return;}
+  S.map.warn=S.map.warn.filter(w=>!/Startposition|Goldfeld-Startplatz/.test(w));
   const warn=[]; S.starts=startPositions(S.map,C.players,{random:C.startMode==="random",goldStart:C.goldStart,warn}); warn.forEach(w=>{ if(!S.map.warn.includes(w))S.map.warn.push(w); });
 }
 function doGenerate(){
