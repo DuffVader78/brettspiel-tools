@@ -147,7 +147,7 @@
 
 <script>
 /* ===== Catan Spielplan-Generator – Engine (1. Edition Kosmos: Grundspiel 95, Ergänzung 96, Seefahrer 97, Seefahrer-Ergänzung) ===== */
-const TERRAIN={wood:{n:"Wald",res:"Holz",c:"#2f7d3a"},sheep:{n:"Weide",res:"Wolle",c:"#8fc24a"},grain:{n:"Acker",res:"Getreide",c:"#e3b53a"},brick:{n:"Hügel",res:"Lehm",c:"#c0603a"},ore:{n:"Gebirge",res:"Erz",c:"#8a8f99"},desert:{n:"Wüste",res:null,c:"#d9c28a"},gold:{n:"Goldfluss",res:"Gold",c:"#f0c43c"},sea:{n:"Meer",res:null,c:"#2a6db5"}};
+const TERRAIN={wood:{n:"Wald",res:"Holz",c:"#2f7d3a"},sheep:{n:"Weide",res:"Wolle",c:"#8fc24a"},grain:{n:"Acker",res:"Getreide",c:"#c98f1f"},brick:{n:"Hügel",res:"Lehm",c:"#c0603a"},ore:{n:"Gebirge",res:"Erz",c:"#8a8f99"},desert:{n:"Wüste",res:null,c:"#d9c28a"},gold:{n:"Goldfluss",res:"Gold",c:"#fbe98a"},sea:{n:"Meer",res:null,c:"#2a6db5"}};
 const RES_KEYS=["wood","sheep","grain","brick","ore"];
 const PIPS={2:1,3:2,4:3,5:4,6:5,8:5,9:4,10:3,11:2,12:1};
 // Inventar je Box (editierbar in der App). harborSea = Meerfelder mit aufgedrucktem Hafen (Grundspiel), harborTok = lose Hafenplättchen (Seefahrer)
@@ -254,36 +254,68 @@ function layoutClassic(big){
 
 /* ---------- Insel-Erzeugung für Seefahrer ---------- */
 function growIslands(rows,cols,landCount,opt){
-  // opt.mode: "main" (Hauptinsel + n Nebeninseln), "equal" (n gleich große), "archipel"
+  // opt.mode: "main" (zentrierte Hauptinsel + n Nebeninseln), "equal" (n gleich große), "archipel"; opt.minSize/maxSize für Nebeninseln/Archipel
   const inside=(r,c)=>r>=0&&r<rows&&c>=0&&c<cols;
   const border=(r,c)=>r===0||c===0||r===rows-1||c===cols-1;
-  const land=new Set(), blocked=new Set();
+  const land=new Set(); const owner=new Map();
   const nbOf=(r,c)=>neighbors(r,c).filter(([rr,cc])=>inside(rr,cc));
-  function canPlace(r,c,islId,owner){ if(!inside(r,c)||border(r,c)||land.has(key(r,c)))return false; // Inseln getrennt halten: kein Nachbar gehört zu anderer Insel
+  const cx=(cols-1)/2, cy=(rows-1)/2;
+  const px=(r,c)=>({x:c+0.5*(r&1),y:r*0.866});
+  const dist=(r,c,x,y)=>{const p=px(r,c);return Math.hypot(p.x-x,p.y-y);};
+  const cxy=px(Math.round(cy),Math.round(cx));
+  const innerBorder=(r,c)=>r===1||c===1||r===rows-2||c===cols-2;
+  let keepMainOff=true;
+  function canPlace(r,c,islId){ if(!inside(r,c)||border(r,c)||land.has(key(r,c)))return false;
+    if(islId===0&&opt.mode==="main"&&keepMainOff&&innerBorder(r,c))return false;
     return nbOf(r,c).every(([rr,cc])=>{const o=owner.get(key(rr,cc)); return o==null||o===islId;}); }
-  function grow(size,islId,owner,seedPref){
-    let seeds=[]; for(let r=1;r<rows-1;r++)for(let c=1;c<cols-1;c++){ if(canPlace(r,c,islId,owner)&&nbOf(r,c).every(([rr,cc])=>!land.has(key(rr,cc)))) seeds.push([r,c]); }
-    if(seedPref) seeds=seeds.sort((a,b)=>seedPref(b)-seedPref(a)).slice(0,Math.max(1,Math.floor(seeds.length/4)));
-    if(!seeds.length) return 0;
-    const [sr,sc]=pick(seeds); const cells=[[sr,sc]]; land.add(key(sr,sc)); owner.set(key(sr,sc),islId);
+  function grow(size,islId,seed,centerBias){
+    if(!seed) return 0;
+    const [sr,sc]=seed; const cells=[[sr,sc]]; land.add(key(sr,sc)); owner.set(key(sr,sc),islId);
     let guard=0;
-    while(cells.length<size&&guard++<400){
-      const frontier=[]; cells.forEach(([r,c])=>nbOf(r,c).forEach(([rr,cc])=>{ if(canPlace(rr,cc,islId,owner)) frontier.push([rr,cc]); }));
+    while(cells.length<size&&guard++<600){
+      const fr=new Map(); cells.forEach(([r,c])=>nbOf(r,c).forEach(([rr,cc])=>{ if(canPlace(rr,cc,islId)) fr.set(key(rr,cc),[rr,cc]); }));
+      let frontier=[...fr.values()];
+      if(!frontier.length&&islId===0&&opt.mode==="main"&&keepMainOff){ keepMainOff=false; continue; }
       if(!frontier.length)break;
-      // kompakt wachsen: bevorzuge Zellen mit vielen Insel-Nachbarn
-      frontier.sort((a,b)=>{ const na=nbOf(a[0],a[1]).filter(([rr,cc])=>owner.get(key(rr,cc))===islId).length, nb=nbOf(b[0],b[1]).filter(([rr,cc])=>owner.get(key(rr,cc))===islId).length; return (nb-na)+(rnd(3)-1); });
-      const [r,c]=frontier[Math.min(frontier.length-1,rnd(Math.min(3,frontier.length)))];
-      cells.push([r,c]); land.add(key(r,c)); owner.set(key(r,c),islId);
+      const scoreF=([r,c])=>{ const na=nbOf(r,c).filter(([rr,cc])=>owner.get(key(rr,cc))===islId).length; const d=centerBias?dist(r,c,centerBias.x,centerBias.y):0; return na*1.2-d*0.9+Math.random()*0.8; };
+      frontier.sort((p,q)=>scoreF(q)-scoreF(p));
+      const [r,c]=frontier[0]; cells.push([r,c]); land.add(key(r,c)); owner.set(key(r,c),islId);
     }
     return cells.length;
   }
-  const owner=new Map(); let placed=0; const sizes=[];
-  if(opt.mode==="main"){ const n=opt.islands||3; const smallTotal=Math.max(n*2,Math.round(landCount*0.35)); const mainSize=landCount-smallTotal; sizes.push(mainSize); const per=Math.floor(smallTotal/n); for(let i=0;i<n;i++) sizes.push(per+(i<smallTotal%n?1:0)); }
-  else if(opt.mode==="equal"){ const n=opt.islands||3; const per=Math.floor(landCount/n); for(let i=0;i<n;i++) sizes.push(per+(i<landCount%n?1:0)); }
-  else { let rest=landCount; while(rest>0){ const s=Math.min(rest,2+rnd(4)); sizes.push(s); rest-=s; } }
-  const centerPref=([r,c])=>-(Math.abs(r-(rows-1)/2)+Math.abs(c-(cols-1)/2));
-  const edgePref=([r,c])=>(Math.abs(r-(rows-1)/2)+Math.abs(c-(cols-1)/2));
-  sizes.forEach((s,i)=>{ placed+=grow(s,i,owner,i===0&&opt.mode==="main"?centerPref:(opt.mode==="main"?edgePref:null)); });
+  const rng=(a,b)=>a+rnd(Math.max(1,b-a+1));
+  const minS=Math.max(1,opt.minSize||1), maxS=Math.max(minS,opt.maxSize||4);
+  let placed=0;
+  if(opt.mode==="main"){
+    const n=opt.islands||3; const sizes=[]; for(let i=0;i<n;i++) sizes.push(rng(minS,maxS));
+    let smallTotal=sizes.reduce((x,y)=>x+y,0); let mainSize=landCount-smallTotal;
+    while(mainSize<Math.max(7,Math.round(landCount*0.45))&&sizes.length){ const i=sizes.indexOf(Math.max(...sizes)); if(sizes[i]>minS){sizes[i]--;mainSize++;} else break; }
+    // Hauptinsel exakt zentriert
+    placed+=grow(mainSize,0,[Math.floor(cy),Math.round(cx)],{x:cx+0.25,y:cy*0.866}); keepMainOff=false;
+    // Nebeninseln sektorweise rundherum, Abstand 2–4 zur Hauptinsel, möglichst weit voneinander
+    const mainCells=[...land].map(k=>k.split(",").map(Number));
+    const dMain=(r,c)=>Math.min(...mainCells.map(([mr,mc])=>dist(r,c,px(mr,mc).x,px(mr,mc).y)));
+    const seedsUsed=[];
+    sizes.forEach((sz,i)=>{
+      const islId=i+1; const a0=(i/sizes.length)*Math.PI*2+Math.random()*0.3; 
+      let cands=[]; for(let r=1;r<rows-1;r++)for(let c=1;c<cols-1;c++){ if(!canPlace(r,c,islId))continue; if(nbOf(r,c).some(([rr,cc])=>land.has(key(rr,cc))))continue;
+        const p=px(r,c); const ang=Math.atan2(p.y-cxy.y,p.x-cxy.x); let da=Math.abs(((ang-a0)+Math.PI*3)%(Math.PI*2)-Math.PI); const dm=dMain(r,c);
+        const dOther=seedsUsed.length?Math.min(...seedsUsed.map(([sr,sc])=>dist(r,c,px(sr,sc).x,px(sr,sc).y))):9;
+        const score=-da*2-Math.abs(dm-2.2)*1.5+Math.min(dOther,4)*0.8; cands.push({r,c,score}); }
+      if(!cands.length)return; cands.sort((p,q)=>q.score-p.score); const pickS=cands[Math.min(cands.length-1,rnd(2))];
+      seedsUsed.push([pickS.r,pickS.c]); placed+=grow(sz,islId,[pickS.r,pickS.c],null);
+    });
+  } else if(opt.mode==="equal"){
+    const n=opt.islands||3; const per=Math.floor(landCount/n); const sizes=[]; for(let i=0;i<n;i++) sizes.push(per+(i<landCount%n?1:0));
+    const seedsUsed=[];
+    sizes.forEach((sz,i)=>{ const a0=(i/n)*Math.PI*2; let cands=[]; for(let r=1;r<rows-1;r++)for(let c=1;c<cols-1;c++){ if(!canPlace(r,c,i))continue; if(nbOf(r,c).some(([rr,cc])=>land.has(key(rr,cc))))continue; const p=px(r,c); const ang=Math.atan2(p.y-cxy.y,p.x-cxy.x); let da=Math.abs(((ang-a0)+Math.PI*3)%(Math.PI*2)-Math.PI); const dc=Math.hypot(p.x-cxy.x,p.y-cxy.y); const dOther=seedsUsed.length?Math.min(...seedsUsed.map(([sr,sc])=>dist(r,c,px(sr,sc).x,px(sr,sc).y))):9; cands.push({r,c,score:-da*2-Math.abs(dc-Math.min(cx,cy)*0.55)+Math.min(dOther,5)*0.6}); }
+      if(!cands.length)return; cands.sort((p,q)=>q.score-p.score); const sd=cands[Math.min(cands.length-1,rnd(2))]; seedsUsed.push([sd.r,sd.c]); placed+=grow(sz,i,[sd.r,sd.c],null); });
+  } else { // Archipel
+    let rest=landCount, i=0; const seedsUsed=[];
+    while(rest>0&&i<40){ const sz=Math.min(rest,rng(minS,maxS));
+      let cands=[]; for(let r=1;r<rows-1;r++)for(let c=1;c<cols-1;c++){ if(!canPlace(r,c,i))continue; if(nbOf(r,c).some(([rr,cc])=>land.has(key(rr,cc))))continue; const dOther=seedsUsed.length?Math.min(...seedsUsed.map(([sr,sc])=>dist(r,c,px(sr,sc).x,px(sr,sc).y))):9; cands.push({r,c,score:Math.min(dOther,4)+Math.random()}); }
+      if(!cands.length)break; cands.sort((p,q)=>q.score-p.score); const sd=cands[Math.min(cands.length-1,rnd(3))]; seedsUsed.push([sd.r,sd.c]); const got=grow(sz,i,[sd.r,sd.c],null); rest-=got; i++; placed+=got; if(!got)break; }
+  }
   return {land:[...land].map(k=>k.split(",").map(Number)),owner,placed,wanted:landCount};
 }
 
@@ -299,14 +331,14 @@ function generate(cfg){
     const L=layoutClassic(big); rows=L.rows;cols=L.cols;landCells=L.land;seaCells=L.sea;
   } else {
     const landAvailAll=Object.values(inv.land).reduce((a,b)=>a+b,0)-Math.max(0,inv.land.desert-(cfg.deserts??1))-Math.max(0,inv.land.gold-(cfg.gold??inv.land.gold));
+    const dens={main:0.5,equal:0.48,archipel:0.38}[cfg.layout]||0.5;
     let want=Math.min(landAvailAll,cfg.landCount||(cfg.players>=5?32:22));
+    want=Math.min(want,Math.floor(inv.seaTotal*dens/(1-dens))); // genug Meerfelder für die Dichte
     if(cfg.rows&&cfg.cols){ rows=cfg.rows; cols=cfg.cols; }
-    else { // Innenfläche (ohne Rahmen): Landdichte ≤ 60 %, Meerfelder nicht über Inventar
-      const innerMin=Math.ceil(want/0.6), innerMax=want+inv.seaTotal;
-      let inner=Math.round(want*1.9); inner=Math.max(innerMin,Math.min(inner,Math.max(innerMax,innerMin)));
-      const ci=Math.max(4,Math.round(Math.sqrt(inner*1.2))), ri=Math.max(4,Math.ceil(inner/ci)); rows=ri+2; cols=ci+2; }
-    const inner=(rows-2)*(cols-2); want=Math.min(want,Math.round(inner*0.6));
-    let g=null; for(let t=0;t<12;t++){ const gg=growIslands(rows,cols,want,{mode:cfg.layout,islands:cfg.islands||3}); if(!g||gg.placed>g.placed)g=gg; if(g.placed>=g.wanted)break; }
+    else { let inner=Math.ceil(want/dens); inner=Math.min(inner,want+inv.seaTotal);
+      let ci=Math.max(4,Math.round(Math.sqrt(inner*1.1))), ri=Math.max(4,Math.ceil(inner/ci)); rows=ri+2; cols=ci+2; }
+    const inner=(rows-2)*(cols-2); want=Math.min(want,Math.round(inner*Math.max(dens,0.5)));
+    let g=null; for(let t=0;t<12;t++){ const gg=growIslands(rows,cols,want,{mode:cfg.layout,islands:cfg.islands||3,minSize:cfg.minIsl||1,maxSize:cfg.maxIsl||4}); if(!g||gg.placed>g.placed)g=gg; if(g.placed>=g.wanted)break; }
     if(g.placed<g.wanted) warn.push(`Nur ${g.placed} von ${g.wanted} Landfeldern passten aufs Brett – Brett vergrößern oder weniger Inseln.`);
     landCells=g.land;
     const ls=new Set(landCells.map(([r,c])=>key(r,c)));
@@ -332,6 +364,7 @@ function generate(cfg){
   const nLand=landCells.length;
   let deserts=Math.min(cfg.deserts??1,inv.land.desert,nLand);
   let gold=Math.min(cfg.gold??(cfg.boxes.sf?Math.min(inv.land.gold,isl.length>1?2:1):0),inv.land.gold);
+  if(cfg.goldStart){ const need=Math.ceil(cfg.players/2); if(gold<need){ gold=Math.min(need,inv.land.gold); if(gold<need) warn.push(`Gold-Start: nur ${gold} Goldfelder im Material für ${cfg.players} Spieler – nicht jeder bekommt ein Goldfeld.`); } }
   let prodNeed=nLand-deserts-gold;
   const pool=[]; RES_KEYS.forEach(k=>{for(let i=0;i<inv.land[k];i++)pool.push(k);});
   if(pool.length<prodNeed){ const extra=Math.min(prodNeed-pool.length,inv.land.desert-deserts); deserts+=extra; prodNeed-=extra;
@@ -346,12 +379,21 @@ function generate(cfg){
   const landHexes=B.land();
   // Gold & Wüste bevorzugt: Gold auf Nebeninseln, Wüste auf Hauptinsel (klassisch) – sonst zufällig
   let assignOrder=shuffle(landHexes);
-  if(isl.length>1){ const small=assignOrder.filter(h=>h.isl>0), main=assignOrder.filter(h=>h.isl===0);
+  const hc=h=>hexCenter(h.r,h.c,1);
+  const spread=(cands,n)=>{ // n Felder mit maximalem gegenseitigen Abstand
+    const out=[]; if(!cands.length)return out; out.push(cands[rnd(cands.length)]);
+    while(out.length<n){ let best=null,bd=-1; cands.forEach(h=>{ if(out.includes(h))return; const d=Math.min(...out.map(o=>{const a=hc(h),b=hc(o);return Math.hypot(a.x-b.x,a.y-b.y);})); if(d>bd){bd=d;best=h;} }); if(!best)break; out.push(best); }
+    return out; };
+  if(isl.length>1||cfg.goldStart){
+    const small=assignOrder.filter(h=>h.isl>0), main=assignOrder.filter(h=>h.isl===0);
     const golds=terrainList.filter(t=>t==="gold"), des=terrainList.filter(t=>t==="desert"), rest=shuffle(terrainList.filter(t=>t!=="gold"&&t!=="desert"));
-    const targets=small.slice(0,golds.length).concat(main.slice(0,des.length)); const tset=new Set(targets);
-    golds.forEach((g,i)=>{ if(small[i]) small[i].t="gold"; else rest.push("gold"); });
-    des.forEach((d,i)=>{ if(main[i]) main[i].t="desert"; else rest.push("desert"); });
-    const others=assignOrder.filter(h=>!tset.has(h)); others.forEach((h,i)=>h.t=rest[i]||"desert");
+    // Gold: weit auseinander – bevorzugt auf verschiedenen Nebeninseln, beim Gold-Start notfalls auch Hauptinsel
+    let goldCands=small.length?small:main; if(cfg.goldStart&&small.length<golds.length*2) goldCands=assignOrder;
+    const goldT=spread(goldCands,golds.length);
+    const desCands=(main.length?main:assignOrder).filter(h=>!goldT.includes(h)); const desT=spread(desCands,des.length);
+    goldT.forEach(h=>h.t="gold"); desT.forEach(h=>h.t="desert");
+    const others=assignOrder.filter(h=>!goldT.includes(h)&&!desT.includes(h)); others.forEach((h,i)=>h.t=rest[i]||"desert");
+    for(let i=golds.length-goldT.length;i>0;i--) rest.push("gold");
   } else assignOrder.forEach((h,i)=>h.t=terrainList[i]||"desert");
   // Gleiche Rohstoffe nicht gehäuft: einfache Tauschoptimierung
   for(let it=0;it<200;it++){ const bad=landHexes.filter(h=>RES_KEYS.includes(h.t)&&B.landNb(h).filter(n=>n.t===h.t).length>=2); if(!bad.length)break; const a=pick(bad), b=pick(landHexes.filter(h=>RES_KEYS.includes(h.t)&&h.t!==a.t)); if(!b)break; const t=a.t;a.t=b.t;b.t=t; }
@@ -387,32 +429,36 @@ function generate(cfg){
   if(!best.assign){ warn.push("Zahlenregeln nicht erfüllbar – 6/8-Regel gelockert."); const A=new Map(); shuffle(prod).slice(0,nTok).forEach((h,i)=>A.set(h,tokPool[i])); best.assign=A; }
   best.assign.forEach((v,h)=>h.n=v);
 
+  applyHiddenToBoard(B,cfg.hiddenMode||"none",null);
   /* Häfen */
   const coastal=B.all().filter(h=>h.t==="sea"&&B.landNb(h).length>0);
   const hGeneric=inv.harborSea.generic+inv.harborTok.generic, hSpecific=inv.harborSea.specific+inv.harborTok.specific;
   let want=cfg.harborCount!=null?cfg.harborCount:Math.round(nLand*9/19);
   want=Math.min(want,hGeneric+hSpecific,coastal.length);
   const nSpec=Math.min(hSpecific,Math.round(want*5/9)); const nGen=Math.min(hGeneric,want-nSpec);
-  const types=shuffle(Array(nGen).fill("3:1").concat(shuffle(RES_KEYS.concat(RES_KEYS)).slice(0,nSpec).map(k=>"2:1 "+TERRAIN[k].res)));
+  let remaining=shuffle(Array(nGen).fill("3:1").concat(shuffle(RES_KEYS.concat(RES_KEYS)).slice(0,nSpec).map(k=>"2:1 "+TERRAIN[k].res)));
+  const nTypes=remaining.length;
   const usedV=new Set(); const harbors=[];
   const cand=shuffle(coastal);
   const V=B.vertices();
-  // Eckpunkte eines Hex ermitteln
   const cornersOf=h=>hexCorners(h.r,h.c,10).map(p=>Math.round(p.x*10)+"_"+Math.round(p.y*10));
-  for(const h of cand){ if(harbors.length>=types.length)break;
-    const landN=B.landNb(h); const target=pick(landN); // Hafen zeigt zu diesem Landfeld
-    // die beiden Eckpunkte an der Kante zum Landfeld
-    const ch=cornersOf(h), ct=cornersOf(target); const shared=ch.filter(k=>ct.includes(k)); if(shared.length!==2)continue;
-    if(shared.some(k=>usedV.has(k)))continue;
-    // benachbarte Eckpunkte der Hafen-Ecken auch sperren (keine Häfen Tür an Tür)
-    shared.forEach(k=>usedV.add(k));
-    h.harbor={type:types[harbors.length],to:{r:target.r,c:target.c}}; harbors.push(h);
+  const resOf=t=>{ const k=RES_KEYS.find(k=>"2:1 "+TERRAIN[k].res===t); return k||null; };
+  for(const h of cand){ if(!remaining.length)break;
+    if(h.hidden)continue;
+    const landN=shuffle(B.landNb(h)); let done=false;
+    for(const target of landN){
+      const ch=cornersOf(h), ct=cornersOf(target); const shared=ch.filter(k=>ct.includes(k)); if(shared.length!==2)continue;
+      if(shared.some(k=>usedV.has(k)))continue;
+      const adjRes=new Set(); shared.forEach(k=>V.get(k).land.forEach(x=>adjRes.add(x.t)));
+      // passenden Typ wählen: Rohstoffhafen nicht an Feld mit gleichem Rohstoff (sofern nicht erlaubt)
+      let ti=remaining.findIndex(t=>{ const rk=resOf(t); return !rk||cfg.harborSameRes||!adjRes.has(rk); });
+      if(ti<0)continue;
+      shared.forEach(k=>usedV.add(k));
+      h.harbor={type:remaining[ti],to:{r:target.r,c:target.c}}; remaining.splice(ti,1); harbors.push(h); done=true; break;
+    }
   }
+  const types={length:nTypes};
   if(harbors.length<types.length) warn.push(`Nur ${harbors.length} von ${types.length} Häfen passten an die Küste.`);
-
-  /* verdeckte Felder */
-  const hiddenN=Math.min(cfg.hidden||0,landHexes.length-2);
-  if(hiddenN>0){ let candH=landHexes.filter(h=>isl.length>1?h.isl>0:true); if(candH.length<hiddenN) candH=landHexes; shuffle(candH).slice(0,hiddenN).forEach(h=>h.hidden=true); }
 
   /* Koordinaten-Labels */
   landHexes.concat(B.all().filter(h=>h.t==="sea")).forEach(h=>{ h.label=String.fromCharCode(65+h.r)+(h.c+1); });
@@ -423,11 +469,30 @@ function generate(cfg){
   return map;
 }
 
+
+/* ---------- Verdeckte Felder ---------- */
+function applyHiddenToBoard(B,mode,startVertices){
+  B.all().forEach(h=>h.hidden=false);
+  if(mode==="none"||!mode) return;
+  const isl=B.islands(); const cells=B.all().filter(h=>h.t!=="frame"&&h.t!=="void");
+  if(mode==="outer"){ if(isl.length<2)return; const mainSet=new Set(isl[0].map(h=>key(h.r,h.c))); const nearMain=new Set(); isl[0].forEach(h=>B.nb(h).forEach(n=>nearMain.add(key(n.r,n.c))));
+    cells.forEach(h=>{ const k=key(h.r,h.c); if(!mainSet.has(k)&&!nearMain.has(k)) h.hidden=true; }); }
+  else if(mode==="islands"){ if(isl.length<2)return; cells.forEach(h=>{ if(h.t!=="sea"&&h.isl>0) h.hidden=true; }); }
+  else if(mode==="starts"&&startVertices){ const open=new Set(); startVertices.forEach(v=>v.hexes.forEach(x=>open.add(x.label||key(x.r,x.c)))); cells.forEach(h=>{ if(!open.has(h.label)) h.hidden=true; }); }
+  B._v=null; B._vn=null;
+}
+function applyHidden(map,mode,starts){
+  const B=boardFromMap(map); applyHiddenToBoard(B,mode,starts?starts.flat():null);
+  map.cells.forEach(c=>{ const h=B.get(c.r,c.c); c.hidden=!!(h&&h.hidden); });
+  map.hiddenStack=shuffle(map.cells.filter(c=>c.hidden&&c.n).map(c=>c.n));
+  return map;
+}
+
 /* ---------- Startpositionen ---------- */
 function boardFromMap(map){ const B=new Board(map.rows,map.cols); map.cells.forEach(c=>B.set(c.r,c.c,{t:c.t,n:c.n,harbor:c.harbor,hidden:c.hidden,isl:c.isl,label:c.label})); return B; }
-function vertexValue(v){ let pips=0; const res=new Set(); v.land.forEach(h=>{ if(h.n&&!h.hidden){pips+=PIPS[h.n]; if(h.t!=="desert")res.add(h.t);} }); return pips+res.size*0.6+(v.land.length===3?0.5:0); }
+function vertexValue(v){ let pips=0; const res=new Set(); v.land.forEach(h=>{ if(h.n){pips+=PIPS[h.n]; if(h.t!=="desert")res.add(h.t);} }); return pips+res.size*0.6+(v.land.length===3?0.5:0); }
 function startPositions(map,players,opt){
-  const B=boardFromMap(map); const V=[...B.vertices().values()].filter(v=>v.land.length>0&&v.land.some(h=>h.t!=="desert"&&!h.hidden));
+  opt=opt||{}; const B=boardFromMap(map); const V=[...B.vertices().values()].filter(v=>v.land.length>0&&v.land.some(h=>h.t!=="desert"));
   V.forEach(v=>v.val=vertexValue(v));
   const hexAt=(r,c)=>B.get(r,c);
   map.cells.filter(c=>c.harbor).forEach(c=>{ const h=hexAt(c.r,c.c), t=hexAt(c.harbor.to.r,c.harbor.to.c); const ck=x=>hexCorners(x.r,x.c,10).map(p=>Math.round(p.x*10)+"_"+Math.round(p.y*10)); const ch=ck(h),ct=ck(t); ch.filter(k=>ct.includes(k)).forEach(k=>{const v=B.vertices().get(k); if(v){v.harbor=c.harbor.type;v.val+=0.8;}}); });
@@ -435,10 +500,14 @@ function startPositions(map,players,opt){
   const blockedSet=()=>{ const b=new Set(); picks.flat().forEach(v=>{ b.add(v.id); B.vertexNeighbors(v).forEach(n=>b.add(n.id)); }); return b; };
   const free=()=>{ const b=blockedSet(); return V.filter(v=>!b.has(v.id)).sort((x,y)=>y.val-x.val); };
   const tot=p=>picks[p].reduce((a,v)=>a+v.val,0);
-  // Schlange: Runde 1 beste freie Ecke (leicht zufällig), Runde 2 Ausgleich auf die Führenden
-  for(let p=0;p<players;p++){ const f=free(); if(f.length) picks[p].push(f[Math.min(f.length-1,rnd(2))]); }
+  const goldV=v=>v.land.some(h=>h.t==="gold");
+  if(opt.random){ // zufällige, legale Positionen (Schlange), keine Bewertung
+    for(let p=0;p<players;p++){ let f=free().filter(v=>v.val>=4); if(opt.goldStart){const g=f.filter(goldV); if(g.length)f=g;} if(f.length) picks[p].push(pick(f)); }
+    for(let p=players-1;p>=0;p--){ const f=free().filter(v=>v.val>=3); if(f.length) picks[p].push(pick(f)); }
+  } else {
+  // Schlange: Runde 1 beste freie Ecke (leicht zufällig; bei Gold-Start nur Ecken an Goldfeldern), Runde 2 Ausgleich auf die Führenden
+  for(let p=0;p<players;p++){ let f=free(); if(opt.goldStart){ const g=f.filter(goldV); if(g.length)f=g; else if(opt.warn)opt.warn.push(`Kein freier Goldfeld-Startplatz mehr für Spieler ${p+1}.`); } if(f.length) picks[p].push(f[Math.min(f.length-1,rnd(2))]); }
   for(let p=players-1;p>=0;p--){ const f=free(); if(!f.length)break; const target=Math.max(...picks.map((_,q)=>tot(q)))-tot(p)+1; let best=f[0],bd=1e9; f.forEach(v=>{const d=Math.abs(v.val-target); if(d<bd){bd=d;best=v;}}); picks[p].push(best); }
-  // Feinausgleich: Schwächster darf seine 2. Ecke gegen eine freie tauschen, wenn es die Spanne verkleinert
   for(let it=0;it<30;it++){
     const t=picks.map((_,q)=>tot(q)); const hi=Math.max(...t), lo=Math.min(...t); if(hi-lo<=1.5)break;
     const p=t.indexOf(lo); if(picks[p].length<2)break;
@@ -447,7 +516,8 @@ function startPositions(map,players,opt){
     let best=null,bd=Math.abs(lo-mean); f.forEach(v=>{ const d=Math.abs((lo-cur.val+v.val)-mean); if(d<bd){bd=d;best=v;} });
     picks[p].push(best||cur); if(!best)break;
   }
-  return picks.map(arr=>arr.map(v=>({id:v.id,x:v.x,y:v.y,val:Math.round(v.val*10)/10,hexes:v.hexes.map(h=>({label:h.label,t:h.t,n:h.n,isl:h.isl})),harbor:v.harbor||null})));
+  }
+  return picks.map(arr=>arr.map(v=>({id:v.id,x:v.x,y:v.y,val:Math.round(v.val*10)/10,hexes:v.hexes.map(h=>({label:h.label,t:h.t,n:h.n,isl:h.isl,r:h.r,c:h.c})),harbor:v.harbor||null})));
 }
 
 /* ===== Missionen ===== */
@@ -526,8 +596,9 @@ const PNAMES_DEF=["Rot","Blau","Orange","Weiß","Grün","Braun"];
 let S=null; // {tab, cfg, inv, map, starts, missions, game, archive}
 function load(){ try{const s=localStorage.getItem(KEY); if(s)S=JSON.parse(s);}catch(e){} if(!S){S={tab:"gen",cfg:defaultCfg(),inv:JSON.parse(JSON.stringify(INVENTORY_DEFAULT)),map:null,starts:null,game:null,archive:[]};} if(!S.inv)S.inv=JSON.parse(JSON.stringify(INVENTORY_DEFAULT)); if(!S.archive)S.archive=[]; }
 function save(){ try{localStorage.setItem(KEY,JSON.stringify(S));}catch(e){} }
-function defaultCfg(){ return {boxes:{base:true,base56:false,sf:false,sf56:false,ck:false,ck56:false},players:4,names:["","","",""],layout:"classic",islands:3,deserts:1,gold:2,redAdjacent:false,sameAdjacent:false,hidden:0,smallIslandsRich:true,harborCount:null,startMode:"dice",missionMode:"secret",tierB:false,targetVP:null}; }
+function defaultCfg(){ return {boxes:{base:true,base56:false,sf:false,sf56:false,ck:false,ck56:false},players:4,names:["","","",""],layout:"classic",islands:3,deserts:1,gold:2,redAdjacent:false,sameAdjacent:false,hiddenMode:"none",minIsl:2,maxIsl:4,goldStart:false,harborSameRes:false,smallIslandsRich:true,harborCount:null,startMode:"dice",missionMode:"secret",tierB:false,targetVP:null}; }
 load();
+if(S.cfg.hiddenMode==null){ Object.assign(S.cfg,{hiddenMode:"none",minIsl:2,maxIsl:4,goldStart:false,harborSameRes:false}); }
 
 /* ---------- SVG-Karte ---------- */
 function mapSvg(map,starts,opt={}){
@@ -539,16 +610,17 @@ function mapSvg(map,starts,opt={}){
   map.cells.forEach(h=>{
     if(h.t==="void")return;
     if(h.t==="frame"){ s+=`<polygon points="${pt(h.r,h.c)}" fill="none" stroke="${opt.print?"#bbb":"#223a55"}" stroke-dasharray="3 3" stroke-width="1"/>`; return; }
-    const col=h.hidden&&!opt.revealAll?(opt.print?"#ddd":"#3a4252"):TERRAIN[h.t].c;
+    const hid=h.hidden&&!opt.revealAll;
+    const col=hid?(opt.print?"#ddd":"#3a4252"):TERRAIN[h.t].c;
     s+=`<polygon points="${pt(h.r,h.c)}" fill="${col}" stroke="${opt.print?"#333":"#0b1b2e"}" stroke-width="1.5"/>`;
     const o=ctr(h.r,h.c);
+    if(hid){ s+=`<text x="${o.x}" y="${o.y+size*0.25}" text-anchor="middle" font-size="${size*0.8}" font-weight="800" fill="${opt.print?"#555":"#9aa7bd"}">?</text>`; if(opt.labels) s+=`<text x="${o.x}" y="${o.y+size*0.82}" text-anchor="middle" font-size="${size*0.24}" fill="${opt.print?"#555":"#7aa0c9"}">${h.label||""}</text>`; return; }
     if(h.t==="sea"){ if(h.harbor){ const t=map.cells.find(x=>x.r===h.harbor.to.r&&x.c===h.harbor.to.c); const o2=ctr(t.r,t.c); const mx=o.x+(o2.x-o.x)*0.62,my=o.y+(o2.y-o.y)*0.62;
         s+=`<line x1="${o.x}" y1="${o.y}" x2="${mx}" y2="${my}" stroke="#fff" stroke-width="3" stroke-linecap="round"/><circle cx="${o.x}" cy="${o.y}" r="${size*0.42}" fill="#fff" stroke="#333"/><text x="${o.x}" y="${o.y+3.5}" text-anchor="middle" font-size="${size*0.3}" font-weight="700" fill="#111">${esc(h.harbor.type.replace("2:1 ","").slice(0,4)==="3:1"?"3:1":h.harbor.type.replace("2:1 ",""))}</text>`; }
       if(opt.labels) s+=`<text x="${o.x}" y="${o.y-size*0.55}" text-anchor="middle" font-size="${size*0.26}" fill="${opt.print?"#555":"#7aa0c9"}">${h.label||""}</text>`;
       return; }
     // Land
-    if(h.hidden&&!opt.revealAll){ s+=`<text x="${o.x}" y="${o.y+size*0.25}" text-anchor="middle" font-size="${size*0.8}" font-weight="800" fill="${opt.print?"#555":"#9aa7bd"}">?</text>`; }
-    else {
+    {
       const name=h.t==="gold"?"Gold":TERRAIN[h.t].n;
       s+=`<text x="${o.x}" y="${o.y-size*0.42}" text-anchor="middle" font-size="${size*0.28}" font-weight="700" fill="${h.t==="ore"||h.t==="wood"?"#fff":"#1a1a1a"}" opacity=".9">${name}</text>`;
       if(h.n){ const red=h.n===6||h.n===8; s+=`<circle cx="${o.x}" cy="${o.y+size*0.12}" r="${size*0.36}" fill="#f6efd8" stroke="#333" stroke-width="1"/><text x="${o.x}" y="${o.y+size*0.12+size*0.14}" text-anchor="middle" font-size="${size*0.4}" font-weight="800" fill="${red?"#c62828":"#111"}">${h.n}</text>`;
@@ -578,12 +650,20 @@ function renderGen(){
       ${sf?`<div class="chip ${C.layout==="main"?"on":""}" data-lay="main">Hauptinsel + Nebeninseln</div><div class="chip ${C.layout==="equal"?"on":""}" data-lay="equal">Gleich große Inseln</div><div class="chip ${C.layout==="archipel"?"on":""}" data-lay="archipel">Archipel (viele kleine)</div>`:""}
     </div>`;
   if(!sf) h+=`<div class="hint">Insel-Layouts erscheinen, sobald „Seefahrer“ angehakt ist.</div>`;
-  if(sf&&C.layout!=="classic") h+=`<div class="row" style="margin-top:10px">
+  if(sf&&C.layout!=="classic"){
+    h+=`<div class="row" style="margin-top:10px">
       ${C.layout!=="archipel"?`<div class="grow"><label class="fld">${C.layout==="main"?"Nebeninseln":"Inseln"}</label><select data-c="islands">${[2,3,4,5,6].map(n=>`<option value="${n}" ${C.islands===n?"selected":""}>${n}</option>`).join("")}</select></div>`:""}
+      ${C.layout!=="equal"?`<div class="grow"><label class="fld">Inselgröße min</label><select data-c="minIsl">${[1,2,3,4].map(n=>`<option value="${n}" ${C.minIsl===n?"selected":""}>${n}</option>`).join("")}</select></div><div class="grow"><label class="fld">Inselgröße max</label><select data-c="maxIsl">${[1,2,3,4,5,6,7,8].map(n=>`<option value="${n}" ${C.maxIsl===n?"selected":""}>${n}</option>`).join("")}</select></div>`:""}
       <div class="grow"><label class="fld">Goldfelder</label><select data-c="gold">${[0,1,2,3].map(n=>`<option value="${n}" ${C.gold===n?"selected":""}>${n}</option>`).join("")}</select></div>
-      <div class="grow"><label class="fld">Verdeckte Felder</label><select data-c="hidden">${[0,2,4,6,8].map(n=>`<option value="${n}" ${C.hidden===n?"selected":""}>${n===0?"keine":n}</option>`).join("")}</select></div>
     </div>
+    <div class="row" style="margin-top:10px"><div class="grow"><label class="fld">Verdeckte Felder (Erkundung)</label><select data-c="hiddenMode">
+      <option value="none" ${C.hiddenMode==="none"?"selected":""}>keine – alles offen</option>
+      ${C.layout==="main"?`<option value="outer" ${C.hiddenMode==="outer"?"selected":""}>alles außer Hauptinsel + Küstenmeer</option>`:""}
+      <option value="islands" ${C.hiddenMode==="islands"?"selected":""}>nur die ${C.layout==="main"?"Nebeninsel":"Insel"}-Landfelder</option>
+      <option value="starts" ${C.hiddenMode==="starts"?"selected":""}>alles außer den Feldern um die Startsiedlungen</option></select></div></div>
     <div class="chips" style="margin-top:8px"><div class="chip ${C.smallIslandsRich?"on":""}" data-t="smallIslandsRich">Nebeninseln bekommen starke Zahlen</div></div>`;
+    if(C.hiddenMode==="starts") h+=`<div class="hint">Erfordert vorgegebene Startpositionen (wird unten automatisch gesetzt). Offen bleiben nur die Felder, die an eine Startsiedlung grenzen – alle anderen Land- und Meerfelder liegen verdeckt.</div>`;
+  }
   h+=`<div class="row" style="margin-top:10px">
       <div class="grow"><label class="fld">Wüsten</label><select data-c="deserts">${[0,1,2,3].map(n=>`<option value="${n}" ${C.deserts===n?"selected":""}>${n}</option>`).join("")}</select></div>
       <div class="grow"><label class="fld">Häfen</label><select data-c="harborCount"><option value="" ${C.harborCount==null?"selected":""}>automatisch</option>${[6,7,8,9,10,11,12,13,14].map(n=>`<option value="${n}" ${C.harborCount===n?"selected":""}>${n}</option>`).join("")}</select></div>
@@ -591,8 +671,10 @@ function renderGen(){
     <div class="sectionTitle">Zahlenchips</div><div class="chips">
       <div class="chip ${!C.redAdjacent?"on":""}" data-t2="redAdjacent">6 und 8 nie nebeneinander (auch 6–6, 8–8)</div>
       <div class="chip ${!C.sameAdjacent?"on":""}" data-t2="sameAdjacent">Gleiche Zahlen nie nebeneinander</div></div>
+    <div class="chips" style="margin-top:8px"><div class="chip ${C.harborSameRes?"on":""}" data-t="harborSameRes">Rohstoffhafen darf an einem Feld mit diesem Rohstoff liegen</div></div>
     <div class="sectionTitle">Startaufstellung</div>
-    <div class="seg"><button data-sm="dice" class="${C.startMode==="dice"?"on":""}">Klassisch am Tisch</button><button data-sm="given" class="${C.startMode==="given"?"on":""}">Vorgegeben (ausgeglichen)</button></div>
+    <div class="seg"><button data-sm="dice" class="${C.startMode==="dice"?"on":""}" ${C.hiddenMode==="starts"?"disabled style='opacity:.35'":""}>Klassisch am Tisch</button><button data-sm="given" class="${C.startMode==="given"?"on":""}">Vorgegeben · ausgeglichen</button><button data-sm="random" class="${C.startMode==="random"?"on":""}">Vorgegeben · zufällig</button></div>
+    ${C.startMode!=="dice"&&sf&&C.gold>0?`<div class="chips" style="margin-top:8px"><div class="chip ${C.goldStart?"on":""}" data-t="goldStart">Jeder startet mit einer Siedlung am Goldfeld</div></div>`:""}
     <div class="sectionTitle">Siegbedingungen</div>
     <div class="chips radio">
       <div class="chip ${C.missionMode==="none"?"on":""}" data-mm="none">Nur Siegpunkte</div>
@@ -601,7 +683,7 @@ function renderGen(){
       <div class="chip ${C.missionMode==="must"?"on":""}" data-mm="must">Pflichtmission (Experten)</div></div>
     ${C.missionMode!=="none"?`<div class="chips" style="margin-top:8px"><div class="chip ${C.tierB?"on":""}" data-t="tierB">Schwere Missionen (3 SP) zulassen</div></div>`:""}
     <div class="hint">${{none:"Klassisch: Wer zuerst das Siegpunktziel erreicht, gewinnt.",secret:"Jeder zieht 2 Missionen und behält 1 (geheim). Erfüllt = Bonus-SP, Ziel +2.",open:"3 Missionen liegen offen; wer sie zuerst erfüllt, bekommt die SP. Ziel +2.",must:"Sieg nur mit erfüllter Mission bei Ziel −1 SP. Nur leichte Missionen, 2 ziehen 1 behalten."}[C.missionMode]}</div>
-    <button class="act" id="btnGen">🎲 Spielplan erzeugen</button></div>`;
+    <div class="row"><button class="act" id="btnGen" style="flex:2">🎲 Spielplan erzeugen</button>${S.map?`<button class="act sec" id="btnReset" style="flex:1">✖ Karte leeren</button>`:""}</div></div>`;
   if(S.map) h+=renderMapBox();
   return h;
 }
@@ -614,20 +696,27 @@ function renderMapBox(){
     ${m.warn.length?`<div class="warn">⚠️ ${m.warn.map(esc).join("<br>")}</div>`:""}
     ${m.hiddenStack.length?`<div class="hint">Chips für verdeckte Felder (verdeckt stapeln, beim Aufdecken oben nehmen): <b>${m.hiddenStack.join(", ")}</b></div>`:""}`;
   if(S.starts){
-    h+=`<div class="sectionTitle">Startpositionen (ausgeglichen nach Ertrag)</div><div class="startlist">`;
-    S.starts.forEach((arr,p)=>{ const nm=S.cfg.names[p]||PNAMES_DEF[p]; h+=`<div class="st" style="--pc:${PCOL[p]}"><b>${esc(nm)} · ${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt</b>${arr.map((v,i)=>`<span>${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":(x.hidden?"?":(TERRAIN[x.t].n+(x.n?" "+x.n:"")))+(S.showLabels&&x.label?" ["+x.label+"]":"")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}</span>`).join("")}</div>`; });
+    h+=`<div class="sectionTitle">Startpositionen ${S.cfg.startMode==="random"?"(zufällig)":"(ausgeglichen nach Ertrag)"}</div><div class="startlist">`;
+    S.starts.forEach((arr,p)=>{ const nm=S.cfg.names[p]||PNAMES_DEF[p]; h+=`<div class="st" style="--pc:${PCOL[p]}"><b>${esc(nm)} · ${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt</b>${arr.map((v,i)=>`<span>${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":(TERRAIN[x.t].n+(x.n?" "+x.n:""))+(S.showLabels&&x.label?" ["+x.label+"]":"")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}</span>`).join("")}</div>`; });
     h+=`</div><div class="hint">Reihenfolge: Spieler 1 setzt Siedlung 1 zuerst; zweite Siedlung in umgekehrter Reihenfolge. Straßen frei wählen.</div>`;
   }
   h+=`<div class="row"><button class="act sec" id="btnRegen" style="flex:1">🎲 Neu würfeln</button><button class="act sec" id="btnSave" style="flex:1">💾 Karte speichern</button><button class="act sec" id="btnPrintMap" style="flex:1">🖨️ Drucken / PDF</button></div>
     <button class="act good" id="btnStartGame">▶ Partie mit dieser Karte starten</button></div>`;
   return h;
 }
+function computeStarts(){
+  const C=S.cfg; if(!S.map||C.startMode==="dice"){S.starts=null;return;}
+  const warn=[]; S.starts=startPositions(S.map,C.players,{random:C.startMode==="random",goldStart:C.goldStart,warn}); warn.forEach(w=>{ if(!S.map.warn.includes(w))S.map.warn.push(w); });
+}
 function doGenerate(){
   const C=S.cfg; const cfg=Object.assign({},C,{inv:S.inv,harborCount:C.harborCount||null});
   if(!C.boxes.sf) cfg.layout="classic";
   if(cfg.layout==="classic"&&C.players>=5&&C.deserts<2) cfg.deserts=2;
+  if(cfg.layout==="classic"||cfg.hiddenMode==="starts") cfg.hiddenMode=cfg.hiddenMode==="starts"?"none":cfg.hiddenMode; // "starts" erst nach Startpositionen
+  if(C.hiddenMode==="starts"&&C.startMode==="dice") C.startMode="given";
   try{ S.map=generate(cfg); }catch(e){ alert("Fehler bei der Erzeugung: "+e.message); return; }
-  S.starts=C.startMode==="given"?startPositions(S.map,C.players):null;
+  computeStarts();
+  if(C.hiddenMode==="starts"&&S.starts) applyHidden(S.map,"starts",S.starts);
   S.reveal=false; save(); render();
 }
 function bindGen(){
@@ -636,14 +725,15 @@ function bindGen(){
   document.querySelectorAll("[data-pl]").forEach(b=>b.onclick=()=>{ C.players=+b.dataset.pl; while(C.names.length<C.players)C.names.push(""); if(C.layout==="classic")C.deserts=C.players>=5?2:1; rr(); });
   document.querySelectorAll("[data-nm]").forEach(i=>i.oninput=()=>{C.names[+i.dataset.nm]=i.value;save();});
   document.querySelectorAll("[data-lay]").forEach(c=>c.onclick=()=>{C.layout=c.dataset.lay;rr();});
-  document.querySelectorAll("[data-c]").forEach(el=>el.onchange=()=>{ const k=el.dataset.c; C[k]=el.value===""?null:parseInt(el.value,10); save(); });
+  document.querySelectorAll("[data-c]").forEach(el=>el.onchange=()=>{ const k=el.dataset.c; C[k]=el.value===""?null:(k==="hiddenMode"?el.value:parseInt(el.value,10)); if(k==="minIsl"&&C.maxIsl<C.minIsl)C.maxIsl=C.minIsl; if(k==="maxIsl"&&C.minIsl>C.maxIsl)C.minIsl=C.maxIsl; if(k==="hiddenMode"&&el.value==="starts"&&C.startMode==="dice")C.startMode="given"; rr(); });
   document.querySelectorAll("[data-t]").forEach(c=>c.onclick=()=>{C[c.dataset.t]=!C[c.dataset.t];rr();});
   document.querySelectorAll("[data-t2]").forEach(c=>c.onclick=()=>{C[c.dataset.t2]=!C[c.dataset.t2];rr();});
-  document.querySelectorAll("[data-sm]").forEach(b=>b.onclick=()=>{C.startMode=b.dataset.sm; if(S.map){S.starts=C.startMode==="given"?startPositions(S.map,C.players):null;} rr();});
+  document.querySelectorAll("[data-sm]").forEach(b=>b.onclick=()=>{ if(b.disabled)return; C.startMode=b.dataset.sm; if(S.map){ computeStarts(); if(C.hiddenMode==="starts"&&S.starts) applyHidden(S.map,"starts",S.starts); } rr();});
   document.querySelectorAll("[data-mm]").forEach(c=>c.onclick=()=>{C.missionMode=c.dataset.mm;rr();});
   const q=id=>document.getElementById(id);
   q("btnGen").onclick=doGenerate;
   if(q("btnRegen")) q("btnRegen").onclick=doGenerate;
+  if(q("btnReset")) q("btnReset").onclick=()=>{ if(confirm("Erzeugte Karte verwerfen?")){ S.map=null; S.starts=null; save(); render(); } };
   if(q("btnLabels")) q("btnLabels").onclick=()=>{S.showLabels=!S.showLabels;rr();};
   if(q("btnReveal")) q("btnReveal").onclick=()=>{S.reveal=!S.reveal;rr();};
   if(q("btnSave")) q("btnSave").onclick=()=>{ const name=prompt("Name für die Karte:",`${S.map.islands.length>1?"Inselwelt":"Insel"} ${C.players} Sp. · ${new Date().toLocaleDateString("de-DE")}`); if(!name)return; S.archive.unshift({name,date:new Date().toISOString(),map:S.map,starts:S.starts,cfg:JSON.parse(JSON.stringify(C))}); save(); alert("Gespeichert – siehe Tab „Karten“."); };
@@ -757,7 +847,7 @@ function printAll(opt){
     h+=`<div class="page"><h2>Catan – Spielplan</h2><div class="meta">${new Date().toLocaleDateString("de-DE")} · ${C.players} Spieler · ${m.inv.landUsed} Landfelder, ${m.inv.seaUsed} Meerfelder, ${m.inv.harbors} Häfen${m.islands.length>1?" · "+m.islands.length+" Inseln":""} · 6/8 ${C.redAdjacent?"dürfen":"nie"} benachbart</div>
       ${mapSvg(m,S.starts,{labels:true,print:true,size:30})}${legendHtml(m)}
       ${m.hiddenStack.length?`<h3>Verdeckte Felder</h3><div class="meta">Chips gemischt als Stapel: ${m.hiddenStack.join(", ")} – Felder mit „?“ mit Rückseite nach oben legen.</div>`:""}`;
-    if(S.starts){ h+=`<h3>Startpositionen</h3><div class="sl">${S.starts.map((arr,p)=>`<div><b style="color:${PCOL[p]}">●</b> <b>${esc(C.names[p]||PNAMES_DEF[p])}</b> (${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt)<br>${arr.map((v,i)=>`${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":((x.hidden?"?":TERRAIN[x.t].n+(x.n?" "+x.n:""))+" ["+x.label+"]")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}`).join("<br>")}</div>`).join("")}</div>`; }
+    if(S.starts){ h+=`<h3>Startpositionen</h3><div class="sl">${S.starts.map((arr,p)=>`<div><b style="color:${PCOL[p]}">●</b> <b>${esc(C.names[p]||PNAMES_DEF[p])}</b> (${arr.reduce((a,v)=>a+v.val,0).toFixed(1)} Pkt)<br>${arr.map((v,i)=>`${i+1}: ${v.hexes.map(x=>x.t==="sea"||x.t==="frame"?"Küste":((TERRAIN[x.t].n+(x.n?" "+x.n:""))+" ["+x.label+"]")).join(" / ")}${v.harbor?" · Hafen "+v.harbor:""}`).join("<br>")}</div>`).join("")}</div>`; }
     h+=`</div>`;
   }
   const g=S.game;
